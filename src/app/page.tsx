@@ -36,6 +36,8 @@ import clsx from "clsx";
 import { LoadingScreen } from "@/components/dashboard/loading-screen";
 import { GlassCard, GlassBtn, KPICard } from "@/components/ui/glass-components";
 import { PageTransition } from "@/components/dashboard/page-transition";
+import ParticleBG from "@/components/ui/particle-bg";
+import Image from "next/image";
 
 type ModuleKey =
   | "Dashboard"
@@ -309,20 +311,7 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-              <GlassCard className="overflow-hidden">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-bold text-white">Animation visuelle</h3>
-                    <p className="mt-1 text-sm text-blue-200">Design statique — 3D supprimée (connexion base prévue)</p>
-                  </div>
-                  <div className="h-60 w-full overflow-hidden rounded-xl border border-white/6 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center justify-center">
-                    <div className="text-center px-6">
-                      <p className="text-sm font-semibold text-slate-300">Placeholder visuel</p>
-                      <p className="mt-1 text-xs text-slate-400">3D animation removed — DB integration will provide live scene later</p>
-                    </div>
-                  </div>
-                </GlassCard>
-
+            <section className="grid gap-6 xl:grid-cols-[1fr]">
               <GlassCard>
                 <h3 className="text-lg font-bold text-white">Activite recente</h3>
                 <ul className="mt-4 space-y-3">
@@ -1055,18 +1044,28 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 relative">
+      <ParticleBG />
       <div className="mx-auto max-w-[1560px] px-3 py-3 md:px-6 md:py-6">
         <div className="grid gap-4 md:gap-6 lg:grid-cols-[260px_1fr]">
           {/* Sidebar */}
           <motion.aside
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-white/8 to-white/3 backdrop-blur-xl lg:flex"
+            className="sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#071225]/60 to-[#061633]/60 backdrop-blur-xl lg:flex"
           >
             <div className="border-b border-white/10 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Intelligence</p>
-              <h1 className="mt-2 text-lg font-bold text-white">Agency Control</h1>
+              <a href="/" className="inline-block">
+                <Image
+                  src="/logo.png"
+                  alt="Site logo"
+                  width={160}
+                  height={56}
+                  className="h-14 w-auto"
+                  style={{ objectFit: "contain" }}
+                  priority
+                />
+              </a>
             </div>
 
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -1083,7 +1082,7 @@ export default function Home() {
                     className={clsx(
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
                       active
-                        ? "bg-gradient-to-r from-blue-500/40 to-purple-500/40 border border-blue-400/50 text-white shadow-lg shadow-blue-500/10"
+                        ? "bg-gradient-to-r from-[#D4A017]/30 to-[#B07B12]/30 border border-[#D4A017]/30 text-white shadow-lg shadow-[#D4A017]/10"
                         : "text-gray-300 hover:bg-white/5 hover:text-white"
                     )}
                   >
@@ -1095,7 +1094,7 @@ export default function Home() {
             </nav>
 
             <div className="border-t border-white/10 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Active User</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">Active User</p>
               <p className="mt-2 text-sm text-white">Admin • Full Access</p>
             </div>
           </motion.aside>
@@ -1107,20 +1106,20 @@ export default function Home() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="rounded-2xl border border-white/10 bg-gradient-to-r from-white/8 to-white/3 backdrop-blur-xl p-4 md:p-6"
+              className="rounded-2xl border border-white/10 bg-gradient-to-r from-[#071225]/10 to-[#061633]/8 backdrop-blur-xl p-4 md:p-6"
             >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Realtime Cockpit</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">Realtime Cockpit</p>
                   <h2 className="mt-2 text-2xl font-bold md:text-3xl text-white">{activeModule}</h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <motion.span
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ repeat: Infinity, duration: 2 }}
-                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/50 px-3 py-1 text-xs font-semibold text-green-300"
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#D4A017]/20 to-[#B07B12]/20 border border-[#D4A017]/30 px-3 py-1 text-xs font-semibold text-[#D4A017]"
                   >
-                    <span className="h-2 w-2 rounded-full bg-green-400" />
+                    <span className="h-2 w-2 rounded-full bg-[#D4A017]" />
                     Live sync
                   </motion.span>
                   <GlassBtn

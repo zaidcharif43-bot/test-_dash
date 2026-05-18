@@ -14,13 +14,13 @@
 }
 
 :root[data-theme="dark"] {
-  --background: #0b1220;
-  --foreground: #edf2ff;
-  --surface: #101a2d;
-  --surface-soft: #17243b;
-  --border: #2b3d5e;
-  --accent: #4b9dff;
-  --accent-strong: #327ed9;
+  --background: #041025;
+  --foreground: #f5efe6;
+  --surface: #071225;
+  --surface-soft: #0e2436;
+  --border: #1f2b3f;
+  --accent: #D4A017;
+  --accent-strong: #B07B12;
   --success: #36b671;
   --warning: #f09b3f;
   --danger: #f15d5d;
@@ -62,9 +62,8 @@ h6 {
 
 :root[data-theme="dark"] .app-shell {
   background:
-    radial-gradient(circle at 10% 5%, rgba(75, 157, 255, 0.25), transparent 32%),
-    radial-gradient(circle at 88% 18%, rgba(54, 182, 113, 0.2), transparent 34%),
-    linear-gradient(180deg, #0b1220 0%, #111b2f 100%);
+    radial-gradient(circle at 10% 5%, rgba(212,160,23,0.06), transparent 32%),
+    linear-gradient(180deg, #041025 0%, #071225 100%);
 }
 
 button,
