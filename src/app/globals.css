@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f2f4f8;
+  --foreground: #101320;
+  --surface: #ffffff;
+  --surface-soft: #eef1f6;
+  --border: #d7dce7;
+  --accent: #0f6dff;
+  --accent-strong: #084fbe;
+  --success: #107c41;
+  --warning: #a85905;
+  --danger: #bf2f2f;
+}
+
+:root[data-theme="dark"] {
+  --background: #0b1220;
+  --foreground: #edf2ff;
+  --surface: #101a2d;
+  --surface-soft: #17243b;
+  --border: #2b3d5e;
+  --accent: #4b9dff;
+  --accent-strong: #327ed9;
+  --success: #36b671;
+  --warning: #f09b3f;
+  --danger: #f15d5d;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-dm-sans);
+  --font-heading: var(--font-space-grotesk);
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 22%, white);
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 10% 5%, rgba(15, 109, 255, 0.16), transparent 32%),
+    radial-gradient(circle at 88% 18%, rgba(16, 124, 65, 0.14), transparent 34%),
+    linear-gradient(180deg, #f8f9fb 0%, #edf1f8 100%);
+}
+
+:root[data-theme="dark"] .app-shell {
+  background:
+    radial-gradient(circle at 10% 5%, rgba(75, 157, 255, 0.25), transparent 32%),
+    radial-gradient(circle at 88% 18%, rgba(54, 182, 113, 0.2), transparent 34%),
+    linear-gradient(180deg, #0b1220 0%, #111b2f 100%);
+}
+
+button,
+article,
+aside,
+section {
+  transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease,
+    transform 220ms ease;
 }
