@@ -36,6 +36,8 @@ import clsx from "clsx";
 import { LoadingScreen } from "@/components/dashboard/loading-screen";
 import { GlassCard, GlassBtn, KPICard } from "@/components/ui/glass-components";
 import { PageTransition } from "@/components/dashboard/page-transition";
+import { GenerateButton } from "@/components/dashboard/generate-button";
+import { LiveWorkflowTracker } from "@/components/dashboard/live-workflow-tracker";
 import ParticleBG from "@/components/ui/particle-bg";
 import Image from "next/image";
 
@@ -52,7 +54,8 @@ type ModuleKey =
   | "Messages"
   | "Analytics"
   | "Notifications"
-  | "Parametres";
+  | "Parametres"
+  | "Admin";
 
 type PostStatus = "Brouillon" | "En attente" | "Valide" | "Programme" | "Publie";
 
@@ -85,6 +88,7 @@ const sidebarItems: { label: ModuleKey; icon: React.ComponentType<{ className?: 
   { label: "Messages", icon: MessageSquare },
   { label: "Analytics", icon: ChartLine },
   { label: "Notifications", icon: Bell },
+  { label: "Admin", icon: Settings },
   { label: "Parametres", icon: Settings },
 ];
 
@@ -340,8 +344,16 @@ export default function Home() {
         <PageTransition moduleKey="publications">
           <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
             <GlassCard>
-              <h3 className="text-lg font-bold text-white">Programmer publication</h3>
-              <div className="mt-4 space-y-3">
+              <h3 className="text-lg font-bold text-white">🚀 n8n Workflow Control</h3>
+              <div className="mt-4 space-y-4">
+                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+                  <p className="text-sm text-blue-200 font-medium mb-3">Generate AI-Powered Content Instantly</p>
+                  <GenerateButton />
+                </div>
+              </div>
+              <div className="mt-6 border-t border-white/10 pt-6">
+                <h3 className="text-lg font-bold text-white">Programmer publication</h3>
+                <div className="mt-4 space-y-3">
                 <input
                   value={postForm.title}
                   onChange={(e) => setPostForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -380,6 +392,7 @@ export default function Home() {
                 <GlassBtn variant="primary" onClick={addPost} className="w-full">
                   Ajouter publication
                 </GlassBtn>
+              </div>
               </div>
             </GlassCard>
 
@@ -927,6 +940,51 @@ export default function Home() {
                   ))
                 )}
               </div>
+            </GlassCard>
+          </div>
+        </PageTransition>
+      );
+    }
+
+    if (activeModule === "Admin") {
+      return (
+        <PageTransition moduleKey="admin">
+          <div className="space-y-6">
+            <section>
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">n8n Control Panel</p>
+                <h3 className="mt-2 text-xl font-bold text-white">Admin Workflow Management</h3>
+              </div>
+              <GlassCard className="border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-cyan-500/5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-white">🚀 Generate Content Now</h4>
+                    <p className="mt-1 text-sm text-gray-300">
+                      Trigger the n8n workflow to generate social media posts and images instantly
+                    </p>
+                  </div>
+                  <GenerateButton />
+                </div>
+              </GlassCard>
+            </section>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <GlassCard className="border-purple-500/20">
+                <h4 className="font-semibold text-white">⏰ Scheduled Trigger</h4>
+                <p className="mt-2 text-sm text-gray-300">Runs Mon/Wed/Fri at 9 AM</p>
+              </GlassCard>
+              <GlassCard className="border-cyan-500/20">
+                <h4 className="font-semibold text-white">⚡ Manual Trigger</h4>
+                <p className="mt-2 text-sm text-gray-300">Click above to generate instantly</p>
+              </GlassCard>
+              <GlassCard className="border-emerald-500/20">
+                <h4 className="font-semibold text-white">✅ Pipeline Status</h4>
+                <p className="mt-2 text-sm text-emerald-300">Webhook is active</p>
+              </GlassCard>
+            </div>
+
+            <GlassCard>
+              <LiveWorkflowTracker />
             </GlassCard>
           </div>
         </PageTransition>
