@@ -18,7 +18,58 @@ import {
   Users,
   WandSparkles,
   Sparkles,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Heart,
+  MessageCircle,
+  Share2,
+  TrendingUp,
+  BarChart3,
+  Globe,
+  X,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRightCircle,
+  ArrowDownCircle,
+  Check,
+  Smartphone,
+  Mail,
+  Shield,
+  Database,
+  Plus,
+  Info,
+  Rocket,
+  Zap,
+  Sun,
+  Moon,
+  Link,
+  KeyRound,
+  Activity,
+  Search,
+  CornerDownRight,
+  LogOut,
 } from "lucide-react";
+
+const Instagram = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
 import {
   Bar,
   BarChart,
@@ -40,31 +91,38 @@ import { GenerateButton } from "@/components/dashboard/generate-button";
 import { LiveWorkflowTracker } from "@/components/dashboard/live-workflow-tracker";
 import ParticleBG from "@/components/ui/particle-bg";
 import Image from "next/image";
+import { LoginScreen, type LoggedInUser } from "@/components/dashboard/login-screen";
+import { supabase } from "@/lib/supabase";
 
 type ModuleKey =
   | "Dashboard"
   | "Publications"
   | "Calendrier editorial"
   | "Clients"
-  | "Leads"
-  | "Campagnes"
   | "Workflows"
   | "Taches"
   | "Equipe"
   | "Messages"
-  | "Analytics"
   | "Notifications"
   | "Parametres"
   | "Admin";
 
-type PostStatus = "Brouillon" | "En attente" | "Valide" | "Programme" | "Publie";
-
 type Post = {
-  id: number;
+  id: number | string;
   title: string;
   platform: string;
   date: string;
-  status: PostStatus;
+  dateTime?: string;
+  status: string;
+  likes?: number;
+  comments?: number;
+  image?: string;
+  views?: number;
+  viewers?: number;
+  impressions?: number;
+  shares?: number;
+  netFollows?: number;
+  commentsList?: any[];
 };
 
 type NotificationItem = {
@@ -75,41 +133,72 @@ type NotificationItem = {
   createdAt: string;
 };
 
+export interface DBTask {
+  id: number;
+  title: string;
+  description?: string;
+  status: "todo" | "in_progress" | "validation" | "done" | "overdue";
+  priority: "urgent" | "high" | "medium" | "low";
+  deadline?: string;
+  is_active?: boolean;
+  assigned_to?: number;
+}
+
+const dbStatusToLocal = (status: string): string => {
+  switch (status) {
+    case "todo": return "A faire";
+    case "in_progress": return "En cours";
+    case "validation": return "Validation";
+    case "done": return "Termine";
+    case "overdue": return "Retard";
+    default: return "A faire";
+  }
+};
+
+const localStatusToDb = (column: string): "todo" | "in_progress" | "validation" | "done" | "overdue" => {
+  switch (column) {
+    case "A faire": return "todo";
+    case "En cours": return "in_progress";
+    case "Validation": return "validation";
+    case "Termine": return "done";
+    case "Retard": return "overdue";
+    default: return "todo";
+  }
+};
+
+const localPriorityToDb = (priority: string): "urgent" | "high" | "medium" | "low" => {
+  switch (priority) {
+    case "Critique": return "urgent";
+    case "Haute": return "high";
+    case "Normale": return "medium";
+    case "Basse": return "low";
+    default: return "medium";
+  }
+};
+
+const dbPriorityToEmoji = (priority: string): string => {
+  switch (priority) {
+    case "urgent": return "🔴";
+    case "high": return "🟠";
+    case "medium": return "🟡";
+    case "low": return "🟢";
+    default: return "🟡";
+  }
+};
+
 const sidebarItems: { label: ModuleKey; icon: React.ComponentType<{ className?: string }> }[] = [
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "Publications", icon: Megaphone },
   { label: "Calendrier editorial", icon: CalendarDays },
   { label: "Clients", icon: UserRound },
-  { label: "Leads", icon: Briefcase },
-  { label: "Campagnes", icon: SquareChartGantt },
   { label: "Workflows", icon: WandSparkles },
   { label: "Taches", icon: ListTodo },
   { label: "Equipe", icon: Users },
   { label: "Messages", icon: MessageSquare },
-  { label: "Analytics", icon: ChartLine },
   { label: "Notifications", icon: Bell },
   { label: "Admin", icon: Settings },
   { label: "Parametres", icon: Settings },
 ];
-
-const engagementData = [
-  { name: "Lun", engagement: 460, reach: 1200 },
-  { name: "Mar", engagement: 520, reach: 1390 },
-  { name: "Mer", engagement: 480, reach: 1260 },
-  { name: "Jeu", engagement: 620, reach: 1560 },
-  { name: "Ven", engagement: 710, reach: 1720 },
-  { name: "Sam", engagement: 690, reach: 1660 },
-  { name: "Dim", engagement: 760, reach: 1890 },
-];
-
-const platformData = [
-  { platform: "Instagram", value: 39, color: "#60a5fa" },
-  { platform: "Facebook", value: 25, color: "#4ade80" },
-  { platform: "LinkedIn", value: 19, color: "#fbbf24" },
-  { platform: "TikTok", value: 17, color: "#f87171" },
-];
-
-const statusFlow: PostStatus[] = ["Brouillon", "En attente", "Valide", "Programme", "Publie"];
 
 const calendarDays = Array.from({ length: 30 }, (_, i) => i + 1);
 
@@ -127,32 +216,650 @@ const leadSeed: { id: number; name: string; stage: string; value: number }[] = [
 const taskColumnsSeed: Record<string, string[]> = {
   "A faire": ["Pack stories Ramadan", "Brief campagne hotel"],
   "En cours": ["Montage reel fitness", "Reply inbox client A"],
-  Validation: ["Visuel promo ete", "Plan sponsoring Juin"],
-  Termine: ["Rapport ROI mai", "Programmation semaine"],
+  "Validation": ["Visuel promo ete", "Plan sponsoring Juin"],
+  "Termine": ["Rapport ROI mai", "Programmation semaine"],
   Retard: ["Relance API WhatsApp"],
 };
 
+const translations: Record<string, Record<string, string>> = {
+  "Français": {
+    dashboard: "Tableau de bord",
+    publications: "Publications",
+    calendriereditorial: "Calendrier Éditorial",
+    clients: "Clients",
+    leads: "Prospects (Leads)",
+    campagnes: "Campagnes",
+    workflows: "Workflows",
+    taches: "Tâches",
+    equipe: "Équipe",
+    messages: "Messages",
+    notifications: "Notifications",
+    parametres: "Paramètres",
+    admin: "Admin",
+    livesync: "Mise à jour en direct",
+    connected: "Connecté (Réel)",
+    simulated: "Simulé (Fallback)",
+    notconnected: "Non Connecté",
+    likes: "Likes",
+    comments: "Commentaires",
+    shares: "Partages",
+    reach: "Portée",
+    activeuser: "Utilisateur Actif",
+    save: "Enregistrer la configuration",
+    apparence: "Apparence",
+    userspermissions: "Utilisateurs & Permissions",
+  },
+  "English": {
+    dashboard: "Dashboard",
+    publications: "Publications",
+    calendriereditorial: "Editorial Calendar",
+    clients: "Clients",
+    leads: "Leads",
+    campagnes: "Campaigns",
+    workflows: "Workflows",
+    taches: "Tasks",
+    equipe: "Team",
+    messages: "Messages",
+    notifications: "Notifications",
+    parametres: "Settings",
+    admin: "Admin",
+    livesync: "Live Sync Active",
+    connected: "Connected (Real)",
+    simulated: "Simulated (Fallback)",
+    notconnected: "Not Connected",
+    likes: "Likes",
+    comments: "Comments",
+    shares: "Shares",
+    reach: "Reach",
+    activeuser: "Active User",
+    save: "Save Configuration",
+    apparence: "Appearance",
+    userspermissions: "Users & Permissions",
+  },
+  "العربية": {
+    dashboard: "لوحة التحكم",
+    publications: "المنشورات",
+    calendriereditorial: "التقويم التحريري",
+    clients: "العملاء",
+    leads: "العملاء المحتملون",
+    campagnes: "الحملات الإعلانية",
+    workflows: "سير العمل المؤتمت",
+    taches: "المهام",
+    equipe: "الفريق",
+    messages: "الرسائل",
+    notifications: "الإشعارات",
+    parametres: "الإعدادات",
+    admin: "الإدارة العامة",
+    livesync: "مزامنة حية نشطة",
+    connected: "متصل (حقيقي)",
+    simulated: "محاكاة (احتياطي)",
+    notconnected: "غير متصل",
+    likes: "الإعجابات",
+    comments: "التعليقات",
+    shares: "المشاركات",
+    reach: "الوصول",
+    activeuser: "المستخدم الحالي",
+    save: "حفظ الإعدادات",
+    apparence: "المظهر العام",
+    userspermissions: "المستخدمين والصلاحيات",
+  }
+};
+
 export default function Home() {
+  const [currentUser, setCurrentUser] = useState<LoggedInUser | null>(null);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showLoading, setShowLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<ModuleKey>("Dashboard");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [language, setLanguage] = useState("Français");
+  const [metaToken, setMetaToken] = useState("");
+  const [metaPageId, setMetaPageId] = useState("");
+  const [metaIgId, setMetaIgId] = useState("");
+  const [googleSheetId, setGoogleSheetId] = useState("");
+
+  // Intermediate form states for Settings
+  const [inputToken, setInputToken] = useState("");
+  const [inputPageId, setInputPageId] = useState("");
+  const [inputIgId, setInputIgId] = useState("");
+  const [inputSheetId, setInputSheetId] = useState("");
+
+  const t = (key: string, defaultText: string) => {
+    const cleanKey = key.toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[éèêë]/g, "e")
+      .replace(/[àâä]/g, "a")
+      .replace(/[ôö]/g, "o")
+      .replace(/[ûüù]/g, "u")
+      .replace(/[îï]/g, "i")
+      .replace(/ç/g, "c")
+      .replace(/[أإآا]/g, "a");
+    return translations[language]?.[cleanKey] || defaultText;
+  };
+
   // No demo posts — data will come from the database later
   const [posts, setPosts] = useState<Post[]>([]);
-  const [postForm, setPostForm] = useState({ title: "", platform: "Instagram", date: "", status: "Brouillon" as PostStatus });
-  const [taskColumns, setTaskColumns] = useState(taskColumnsSeed);
-  const [draggedTask, setDraggedTask] = useState<{ task: string; from: string } | null>(null);
+  const [calendarPosts, setCalendarPosts] = useState<any[]>([]);
+  const [taskColumns, setTaskColumns] = useState<Record<string, DBTask[]>>({
+    "A faire": [],
+    "En cours": [],
+    "Validation": [],
+    "Termine": [],
+    "Retard": [],
+  });
+  const [draggedTask, setDraggedTask] = useState<{ task: DBTask; from: string } | null>(null);
+  
+  // Custom Task Creation Modal State
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskColumn, setNewTaskColumn] = useState("A faire");
+  const [newTaskPriority, setNewTaskPriority] = useState("Normale");
+
   const [workflows, setWorkflows] = useState(workflowsSeed);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [clientsFilter, setClientsFilter] = useState("");
   const [messages, setMessages] = useState(messagesSeed);
   const [reply, setReply] = useState("");
+  const [selectedPostId, setSelectedPostId] = useState<string | number | null>(null);
+  const [selectedComment, setSelectedComment] = useState<any | null>(null);
+  const [commentReplyText, setCommentReplyText] = useState("");
+  const [isPostingReply, setIsPostingReply] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const visibleSidebarItems = useMemo(() => {
+    if (!currentUser) return [];
+    return sidebarItems.filter((item) => {
+      if (currentUser.role === "cm") {
+        return ["Dashboard", "Publications", "Calendrier editorial", "Messages", "Notifications", "Parametres"].includes(item.label);
+      }
+      if (currentUser.role === "manager") {
+        return item.label !== "Admin";
+      }
+      return true; // admin
+    });
+  }, [currentUser]);
+
+  // Adjust activeModule if permissions restrict it
+  useEffect(() => {
+    if (currentUser && visibleSidebarItems.length > 0) {
+      const isAllowed = visibleSidebarItems.some(item => item.label === activeModule);
+      if (!isAllowed) {
+        setActiveModule(visibleSidebarItems[0].label);
+      }
+    }
+  }, [currentUser, activeModule, visibleSidebarItems]);
+  const [messagesSearchQuery, setMessagesSearchQuery] = useState("");
+  const [messagesPlatformFilter, setMessagesPlatformFilter] = useState<"All" | "Facebook" | "Instagram">("All");
   const [campaignBudget, setCampaignBudget] = useState(95000);
   const [campaignSpent, setCampaignSpent] = useState(58700);
   const [leads, setLeads] = useState(leadSeed);
+  const [metaInsights, setMetaInsights] = useState<{facebook: any; instagram: any; recentPosts?: any[]; isForecast?: boolean; metrics?: any} | null>(null);
 
+  // Date selectors initialized to May 2026 (matching baseline scheduled posts)
+  const [selectedMonth, setSelectedMonth] = useState<number>(4); // May (0-indexed)
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [publicationsFilter, setPublicationsFilter] = useState<"All" | "Facebook" | "Instagram">("All");
+
+  const monthsList = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+  ];
+  
+  const yearsList = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+
+  const handlePrevMonth = () => {
+    setSelectedMonth((prev) => {
+      if (prev === 0) {
+        setSelectedYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonth((prev) => {
+      if (prev === 11) {
+        setSelectedYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  };
+
+  const handleGoToToday = () => {
+    setSelectedMonth(4); // Reset to baseline sheet month
+    setSelectedYear(2026);
+  };
+
+  // True calendar grid calculations
+  const calendarCells = useMemo(() => {
+    const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(selectedYear, selectedMonth, 1).getDay();
+    const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) {
+      cells.push({ dayNum: null, dateString: "" });
+    }
+    for (let day = 1; day <= totalDays; day++) {
+      const monthStr = String(selectedMonth + 1).padStart(2, "0");
+      const dayStr = String(day).padStart(2, "0");
+      const dateString = `${selectedYear}-${monthStr}-${dayStr}`;
+      cells.push({ dayNum: day, dateString });
+    }
+    return cells;
+  }, [selectedMonth, selectedYear]);
+
+  // Dynamically compute forecast metrics for future dates
+  const displayInsights = useMemo(() => {
+    if (!metaInsights) return null;
+
+    const baseYear = 2026;
+    const baseMonth = 4; // May
+    
+    // Calculate months difference
+    const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
+    const baseMetrics = metaInsights.metrics || { totalLikes: 0, totalComments: 0, totalShares: 0, totalReach: 0 };
+
+    if (diffMonths <= 0) {
+      return {
+        ...metaInsights,
+        metrics: baseMetrics
+      };
+    }
+
+    // Future date: simulate predictive values showing professional growth!
+    const growthFactor = 1 + diffMonths * 0.08; // 8% monthly growth
+    const fbFollowers = Math.round(metaInsights.facebook.followers * growthFactor);
+    const fbLikes = Math.round(metaInsights.facebook.likes * (1 + diffMonths * 0.07));
+    const igFollowers = Math.round(metaInsights.instagram.followers * (1 + diffMonths * 0.12));
+    const igPosts = metaInsights.instagram.posts + diffMonths * 8; // 8 new posts scheduled per month
+
+    const growthMultiplier = 1 + diffMonths * 0.09;
+    const metrics = {
+      totalLikes: Math.round(baseMetrics.totalLikes * growthMultiplier),
+      totalComments: Math.round(baseMetrics.totalComments * growthMultiplier),
+      totalShares: Math.round(baseMetrics.totalShares * growthMultiplier),
+      totalReach: Math.round(baseMetrics.totalReach * growthMultiplier),
+    };
+
+    return {
+      isForecast: true,
+      facebook: {
+        name: metaInsights.facebook.name,
+        followers: fbFollowers,
+        likes: fbLikes,
+      },
+      instagram: {
+        username: metaInsights.instagram.username,
+        followers: igFollowers,
+        posts: igPosts,
+      },
+      recentPosts: metaInsights.recentPosts,
+      metrics
+    };
+  }, [metaInsights, selectedMonth, selectedYear]);
+
+  // Dynamically compute comparative platform data
+  const platformData = useMemo(() => {
+    if (!displayInsights) {
+      return [
+        { platform: "Instagram", value: 39, color: "#ec4899" },
+        { platform: "Facebook", value: 25, color: "#3b82f6" },
+        { platform: "LinkedIn", value: 19, color: "#fbbf24" },
+      ];
+    }
+    const igFollowers = displayInsights.instagram?.followers ?? 0;
+    const fbFollowers = displayInsights.facebook?.followers ?? 0;
+    const total = igFollowers + fbFollowers + 1000; // Mock additional offset
+    const igPercent = Math.round((igFollowers / total) * 100) || 45;
+    const fbPercent = Math.round((fbFollowers / total) * 100) || 35;
+    const liPercent = 100 - igPercent - fbPercent;
+    
+    return [
+      { platform: "Instagram", value: igPercent, color: "#ec4899" },
+      { platform: "Facebook", value: fbPercent, color: "#3b82f6" },
+      { platform: "LinkedIn", value: liPercent, color: "#fbbf24" },
+    ];
+  }, [displayInsights]);
+
+  // Dynamically compute engagement growth curves based on month selection
+  const engagementData = useMemo(() => {
+    const baseYear = 2026;
+    const baseMonth = 4; // May
+    const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
+    const multiplier = diffMonths > 0 ? 1 + diffMonths * 0.08 : 1;
+
+    const baseData = [
+      { name: "Lun", engagement: 460, reach: 1200 },
+      { name: "Mar", engagement: 520, reach: 1390 },
+      { name: "Mer", engagement: 480, reach: 1260 },
+      { name: "Jeu", engagement: 620, reach: 1560 },
+      { name: "Ven", engagement: 710, reach: 1720 },
+      { name: "Sam", engagement: 690, reach: 1660 },
+      { name: "Dim", engagement: 760, reach: 1890 },
+    ];
+
+    return baseData.map(d => ({
+      name: d.name,
+      engagement: Math.round(d.engagement * multiplier),
+      reach: Math.round(d.reach * multiplier)
+    }));
+  }, [selectedMonth, selectedYear]);
+
+  const renderDateSelector = () => {
+    return (
+      <div className={clsx(
+        "flex items-center gap-3 border rounded-2xl p-1.5 backdrop-blur-md self-center transition-all duration-300",
+        theme === "dark" ? "bg-white/5 border-white/10" : "bg-black/5 border-slate-200"
+      )}>
+        <button
+          onClick={handlePrevMonth}
+          className={clsx(
+            "p-1.5 rounded-xl transition-all",
+            theme === "dark" ? "hover:bg-white/10 text-gray-300 hover:text-white" : "hover:bg-black/5 text-slate-600 hover:text-slate-900"
+          )}
+          title="Mois précédent"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-1.5 px-1">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className={clsx(
+              "bg-transparent border-0 font-bold focus:ring-0 cursor-pointer outline-none hover:text-[#D4A017] transition-colors text-sm pr-6",
+              theme === "dark" ? "text-white" : "text-slate-800"
+            )}
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', background: 'none' }}
+          >
+            {monthsList.map((m, idx) => (
+              <option key={m} value={idx} className={theme === "dark" ? "bg-slate-950 text-white text-sm" : "bg-white text-slate-800 text-sm"}>{m}</option>
+            ))}
+          </select>
+
+          <span className="text-gray-500 font-light">/</span>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className={clsx(
+              "bg-transparent border-0 font-bold focus:ring-0 cursor-pointer outline-none hover:text-[#D4A017] transition-colors text-sm pr-6",
+              theme === "dark" ? "text-white" : "text-slate-800"
+            )}
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', background: 'none' }}
+          >
+            {yearsList.map(y => (
+              <option key={y} value={y} className={theme === "dark" ? "bg-slate-950 text-white text-sm" : "bg-white text-slate-800 text-sm"}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={handleNextMonth}
+          className={clsx(
+            "p-1.5 rounded-xl transition-all",
+            theme === "dark" ? "hover:bg-white/10 text-gray-300 hover:text-white" : "hover:bg-black/5 text-slate-600 hover:text-slate-900"
+          )}
+          title="Mois suivant"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        <div className={clsx("w-[1px] h-5", theme === "dark" ? "bg-white/10" : "bg-slate-200")} />
+
+        <button
+          onClick={handleGoToToday}
+          className="px-2.5 py-1 bg-[#D4A017]/10 hover:bg-[#D4A017]/20 border border-[#D4A017]/30 hover:border-[#D4A017]/50 transition-all text-[11px] font-semibold rounded-lg text-[#D4A017]"
+        >
+          Mai '26 (Base)
+        </button>
+      </div>
+    );
+  };
+
+  // Load configuration from localStorage on mount
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("dashboard-theme") as "light" | "dark";
+      if (savedTheme) setTheme(savedTheme);
+
+      const savedLanguage = localStorage.getItem("dashboard-language") || "Français";
+      setLanguage(savedLanguage);
+
+      const savedToken = localStorage.getItem("meta-access-token") || "";
+      const savedPageId = localStorage.getItem("meta-page-id") || "";
+      const savedIgId = localStorage.getItem("meta-instagram-id") || "";
+      const savedGoogleSheetId = localStorage.getItem("google-sheet-id") || "";
+      
+      setMetaToken(savedToken);
+      setMetaPageId(savedPageId);
+      setMetaIgId(savedIgId);
+      setGoogleSheetId(savedGoogleSheetId);
+
+      setInputToken(savedToken);
+      setInputPageId(savedPageId);
+      setInputIgId(savedIgId);
+      setInputSheetId(savedGoogleSheetId);
+
+      const savedAuth = localStorage.getItem("dashboard-auth-user");
+      if (savedAuth) {
+        try {
+          setCurrentUser(JSON.parse(savedAuth));
+        } catch (e) {
+          console.error("Auth Parsing Error:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Save theme to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("dashboard-theme", theme);
+    }
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Group and set tasks helper
+  const groupAndSetTasks = (tasks: DBTask[]) => {
+    const columns: Record<string, DBTask[]> = {
+      "A faire": [],
+      "En cours": [],
+      "Validation": [],
+      "Termine": [],
+      "Retard": [],
+    };
+
+    tasks.forEach((task) => {
+      const colName = dbStatusToLocal(task.status);
+      if (columns[colName]) {
+        columns[colName].push(task);
+      }
+    });
+
+    setTaskColumns(columns);
+  };
+
+  // Load tasks from Supabase on mount
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const { data: dbTasks, error } = await supabase
+          .from("tasks")
+          .select("*")
+          .order("id", { ascending: true });
+
+        if (error) throw error;
+
+        // If tasks table is empty, auto-seed with default premium brand tasks
+        if (!dbTasks || dbTasks.length === 0) {
+          const defaultTasks = [
+            { title: "Pack stories Ramadan", status: "todo", priority: "medium" },
+            { title: "Brief campagne hotel", status: "todo", priority: "high" },
+            { title: "Montage reel fitness", status: "in_progress", priority: "high" },
+            { title: "Reply inbox client A", status: "in_progress", priority: "urgent" },
+            { title: "Visuel promo ete", status: "validation", priority: "medium" },
+            { title: "Plan sponsoring Juin", status: "validation", priority: "low" },
+            { title: "Rapport ROI mai", status: "done", priority: "medium" },
+            { title: "Programmation semaine", status: "done", priority: "low" },
+            { title: "Relance API WhatsApp", status: "overdue", priority: "urgent" },
+          ];
+
+          const { data: insertedTasks, error: insertError } = await supabase
+            .from("tasks")
+            .insert(defaultTasks)
+            .select();
+
+          if (insertError) throw insertError;
+          
+          if (insertedTasks) {
+            groupAndSetTasks(insertedTasks);
+          }
+        } else {
+          groupAndSetTasks(dbTasks);
+        }
+      } catch (err) {
+        console.error("Error loading tasks from Supabase:", err);
+      }
+    }
+
+    if (currentUser) {
+      fetchTasks();
+    }
+  }, [currentUser]);
+
+  // Fetch team members from Supabase (excluding admins)
+  useEffect(() => {
+    async function fetchTeam() {
+      try {
+        const { data: dbUsers, error } = await supabase
+          .from("users")
+          .select("*")
+          .neq("role", "admin");
+
+        if (error) throw error;
+        if (dbUsers) {
+          setTeamMembers(dbUsers);
+        }
+      } catch (err) {
+        console.error("Error loading team members:", err);
+      }
+    }
+
+    if (currentUser) {
+      fetchTeam();
+    }
+  }, [currentUser]);
+
+  // Compute team statistics dynamically based on users and task columns state
+  const dynamicTeam = useMemo(() => {
+    const allTasks = Object.values(taskColumns).flat();
+
+    return teamMembers.map((member) => {
+      const memberTasks = allTasks.filter(t => t.assigned_to === member.id);
+      const totalCount = memberTasks.length;
+      const completedCount = memberTasks.filter(t => t.status === "done").length;
+
+      // Default baseline performance score if no tasks are assigned
+      let score = 95;
+      if (totalCount > 0) {
+        score = Math.round((completedCount / totalCount) * 100);
+      }
+
+      let displayRole = member.role;
+      if (member.role === "community_manager") displayRole = "Community Manager";
+      else if (member.role === "designer") displayRole = "Designer";
+      else if (member.role === "commercial") displayRole = "Commercial";
+      else if (member.role === "client") displayRole = "Client";
+      else if (member.role === "manager") displayRole = "Manager";
+
+      return {
+        id: member.id,
+        name: member.full_name,
+        role: displayRole,
+        tasks: totalCount,
+        score: score,
+        email: member.email,
+        avatarUrl: member.avatar_url,
+      };
+    });
+  }, [teamMembers, taskColumns]);
+
+  // Fetch Meta Graph API Insights and Posts
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const queryParams = new URLSearchParams();
+        if (metaToken) queryParams.append("token", metaToken);
+        if (metaPageId) queryParams.append("pageId", metaPageId);
+        if (metaIgId) queryParams.append("igId", metaIgId);
+
+        const url = `/api/meta-insights?${queryParams.toString()}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.error) {
+          setMetaInsights(data);
+          if (data.recentPosts && Array.isArray(data.recentPosts)) {
+            setPosts(data.recentPosts);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching Meta insights:", err);
+      }
+    }
+    
+    async function loadCalendar() {
+      try {
+        const url = googleSheetId ? `/api/posts?sheetId=${googleSheetId}` : "/api/posts";
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.error && Array.isArray(data)) {
+          // Normalize calendar posts
+          const normalized = data.map((d: any) => {
+             // Parse "dd/mm/yyyy hh:mm:ss" to "yyyy-mm-dd"
+             let parsedDate = "N/A";
+             let parsedTime = "N/A";
+             if (d.PublishedAt) {
+               const parts = d.PublishedAt.trim().split(" ");
+               if (parts[0]) {
+                 const [day, month, year] = parts[0].split("/");
+                 if (day && month && year) {
+                   parsedDate = `${year.trim()}-${month.trim().padStart(2, '0')}-${day.trim().padStart(2, '0')}`;
+                 }
+               }
+               if (parts[1]) {
+                 parsedTime = parts[1].trim().substring(0, 5); // "19:39"
+               }
+             }
+
+             let statusText = d.Status || "Programme";
+             if (statusText.includes("Published")) statusText = "Publie";
+             if (statusText.includes("Refused")) statusText = "Rejete";
+
+             return {
+               id: d.draft_id_info || Math.random(),
+               title: d.Service || d.ServiceTitle || "Publication",
+               platform: d.Social_Network || "Omnicanal",
+               date: parsedDate,
+               dateTime: parsedTime,
+               status: statusText
+             };
+          });
+          setCalendarPosts(normalized);
+        }
+      } catch(err) {
+        console.error("Error fetching calendar posts:", err);
+      }
+    }
+
+    loadMeta();
+    loadCalendar();
+    // Poll Meta API quietly
+    const interval = setInterval(loadMeta, 30000);
+    return () => clearInterval(interval);
+  }, [metaToken, metaPageId, metaIgId, googleSheetId]);
 
   useEffect(() => {
     const generator = window.setInterval(() => {
@@ -184,51 +891,33 @@ export default function Home() {
   const kpis = useMemo(() => {
     const activeCampaigns = campaignSpent > 0 ? 4 : 0;
     const unread = notifications.filter((n) => !n.read).length;
+
+    // Growth multiplier for future dates
+    const baseYear = 2026;
+    const baseMonth = 4; // May
+    const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
+    const multiplier = diffMonths > 0 ? 1 + diffMonths * 0.07 : 1;
+
+    const revenues = 48.2 * multiplier;
+    const leadsCount = Math.round(leads.length * (diffMonths > 0 ? 1 + diffMonths * 0.1 : 1));
+    const publicationsCount = posts.length + (diffMonths > 0 ? diffMonths * 8 : 0);
+    const activeClientsCount = clientsSeed.filter((c) => c.status === "Actif").length + (diffMonths > 0 ? Math.floor(diffMonths * 1.5) : 0);
+
     return [
-      { label: "Publications", value: String(posts.length), growth: "+14%", icon: "📊" },
-      { label: "Leads", value: String(leads.length), growth: "+22%", icon: "📈" },
-      { label: "Clients actifs", value: String(clientsSeed.filter((c) => c.status === "Actif").length), growth: "+6", icon: "👥" },
-      { label: "Campagnes actives", value: String(activeCampaigns), growth: "+1", icon: "🎯" },
-      { label: "Revenus générés", value: "€48.2K", growth: "+18%", icon: "💰" },
-      { label: "Engagement", value: "4.2%", growth: "+2.8%", icon: "💬" },
+      { label: "Publications", value: String(publicationsCount), growth: diffMonths > 0 ? `+${14 + diffMonths * 2}%` : "+14%", icon: "📊" },
+      { label: "Leads", value: String(leadsCount), growth: diffMonths > 0 ? `+${22 + diffMonths * 3}%` : "+22%", icon: "📈" },
+      { label: "Clients actifs", value: String(activeClientsCount), growth: diffMonths > 0 ? `+${diffMonths * 2}` : "+6", icon: "👥" },
+      { label: "Campagnes actives", value: String(activeCampaigns + (diffMonths > 0 ? Math.floor(diffMonths * 0.5) : 0)), growth: "+1", icon: "🎯" },
+      { label: "Revenus générés", value: `€${revenues.toFixed(1)}K`, growth: diffMonths > 0 ? `+${18 + diffMonths * 2.5}%` : "+18%", icon: "💰" },
+      { label: "Engagement", value: `${(4.2 * (diffMonths > 0 ? 1 + diffMonths * 0.02 : 1)).toFixed(1)}%`, growth: "+2.8%", icon: "💬" },
       { label: "Temps réponse", value: "2h 15m", growth: "-30m", icon: "⏱️" },
       { label: "Notif non lues", value: String(unread), growth: "live", icon: "🔔" },
     ];
-  }, [campaignSpent, leads.length, notifications, posts]);
+  }, [campaignSpent, leads.length, notifications, posts, selectedMonth, selectedYear]);
 
   const filteredClients = clientsSeed.filter((c) =>
     c.company.toLowerCase().includes(clientsFilter.toLowerCase()),
   );
-
-  const addPost = () => {
-    if (!postForm.title.trim() || !postForm.date) {
-      return;
-    }
-    setPosts((prev) => [
-      {
-        id: Date.now(),
-        title: postForm.title.trim(),
-        platform: postForm.platform,
-        date: postForm.date,
-        status: postForm.status,
-      },
-      ...prev,
-    ]);
-    setPostForm({ title: "", platform: "Instagram", date: "", status: "Brouillon" });
-  };
-
-  const cyclePostStatus = (id: number) => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== id) {
-          return post;
-        }
-        const currentIndex = statusFlow.indexOf(post.status);
-        const nextStatus = statusFlow[(currentIndex + 1) % statusFlow.length];
-        return { ...post, status: nextStatus };
-      }),
-    );
-  };
 
   const runWorkflow = (id: number) => {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, runs: wf.runs + 1 } : wf)));
@@ -248,23 +937,103 @@ export default function Home() {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, active: !wf.active } : wf)));
   };
 
-  const onTaskDrop = (toColumn: string) => {
+  const onTaskDrop = async (toColumn: string) => {
     if (!draggedTask || draggedTask.from === toColumn) {
       setDraggedTask(null);
       return;
     }
 
+    const { task, from } = draggedTask;
+    const newDbStatus = localStatusToDb(toColumn);
+
+    // Optimistically update the UI to keep it zero-latency
     setTaskColumns((prev) => {
-      const sourceItems = prev[draggedTask.from].filter((item) => item !== draggedTask.task);
-      const targetItems = [draggedTask.task, ...prev[toColumn]];
+      const sourceItems = prev[from].filter((item) => item.id !== task.id);
+      const updatedTask = { ...task, status: newDbStatus };
+      const targetItems = [updatedTask, ...prev[toColumn]];
 
       return {
         ...prev,
-        [draggedTask.from]: sourceItems,
+        [from]: sourceItems,
         [toColumn]: targetItems,
       };
     });
     setDraggedTask(null);
+
+    // Persist in background database
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: newDbStatus })
+        .eq("id", task.id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to update task status in Supabase:", err);
+      setToast({
+        message: language === "العربية" 
+          ? "فشل تحديث حالة المهمة." 
+          : language === "English" 
+          ? "Failed to update task status." 
+          : "Échec de la mise à jour de la tâche.",
+        type: "error"
+      });
+      // Fallback: reload tasks from db to restore correct state
+      try {
+        const { data: dbTasks } = await supabase.from("tasks").select("*").order("id", { ascending: true });
+        if (dbTasks) groupAndSetTasks(dbTasks);
+      } catch (reloadErr) {
+        console.error("Reload error after drop failure:", reloadErr);
+      }
+    }
+  };
+
+  const handleTaskDelete = async (taskId: number) => {
+    let deletedTask: DBTask | null = null;
+    let targetColumn = "";
+    
+    const updatedColumns = { ...taskColumns };
+    for (const col of Object.keys(updatedColumns)) {
+      const idx = updatedColumns[col].findIndex(t => t.id === taskId);
+      if (idx !== -1) {
+        deletedTask = updatedColumns[col][idx];
+        targetColumn = col;
+        updatedColumns[col] = updatedColumns[col].filter(t => t.id !== taskId);
+        break;
+      }
+    }
+    
+    if (!deletedTask) return;
+    
+    // Optimistic UI update
+    setTaskColumns(updatedColumns);
+    
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId);
+        
+      if (error) throw error;
+      
+      setToast({
+        message: language === "العربية" ? "تم حذف المهمة بنجاح!" : language === "English" ? "Task deleted successfully!" : "Tâche supprimée avec succès !",
+        type: "success"
+      });
+    } catch (err) {
+      console.error("Error deleting task from Supabase:", err);
+      // Revert optimistic update
+      const revertedColumns = { ...taskColumns };
+      if (deletedTask && targetColumn) {
+        revertedColumns[targetColumn] = [...revertedColumns[targetColumn], deletedTask].sort((a, b) => a.id - b.id);
+        setTaskColumns(revertedColumns);
+      }
+      
+      setToast({
+        message: language === "العربية" ? "فشل حذف المهمة." : language === "English" ? "Failed to delete task." : "Échec de la suppression de la tâche.",
+        type: "error"
+      });
+    }
   };
 
   const sendReply = () => {
@@ -278,6 +1047,85 @@ export default function Home() {
       return [{ ...prev[0], text: `Derniere reponse: ${reply.trim()}` }, ...prev.slice(1)];
     });
     setReply("");
+  };
+
+  const handleSendCommentReply = async (commentId: string, messageText: string, platform: string) => {
+    if (!messageText.trim()) return;
+    setIsPostingReply(true);
+    try {
+      const res = await fetch("/api/meta-comments/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          message: messageText,
+          platform,
+          token: metaToken,
+          pageId: metaPageId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPosts((prevPosts) => {
+          return prevPosts.map((post) => {
+            const comments = post.commentsList || [];
+            const commentExists = comments.some((c: any) => c.id === commentId);
+            if (commentExists) {
+              const newReply = {
+                id: data.id || `reply_${Date.now()}`,
+                from: "Community Manager (Moi)",
+                text: messageText,
+                date: new Date().toISOString().substring(0, 16).replace("T", " "),
+                isReply: true,
+              };
+              return {
+                ...post,
+                commentsList: [...comments, newReply],
+                comments: (post.comments || 0) + 1,
+              };
+            }
+            return post;
+          });
+        });
+
+        setNotifications((prev) => [
+          {
+            id: Date.now(),
+            type: "Interne",
+            text: `Réponse publiée sur ${platform}: "${messageText.substring(0, 25)}..."`,
+            read: false,
+            createdAt: "Maintenant",
+          },
+          ...prev,
+        ]);
+
+        setToast({
+          message: data.isSimulated
+            ? "Réponse publiée (Simulation locale)"
+            : "Réponse publiée avec succès sur Meta Graph !",
+          type: "success",
+        });
+        setTimeout(() => setToast(null), 4000);
+
+        setCommentReplyText("");
+        setSelectedComment(null);
+      } else {
+        setToast({
+          message: `Erreur: ${data.error || "Impossible d'envoyer la réponse"}`,
+          type: "error",
+        });
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (err: any) {
+      console.error("Error sending reply:", err);
+      setToast({
+        message: `Erreur réseau: ${err.message || "Erreur de connexion"}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setIsPostingReply(false);
+    }
   };
 
   const moveLead = (id: number) => {
@@ -298,123 +1146,372 @@ export default function Home() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
+  const handleSaveCredentials = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("meta-access-token", inputToken.trim());
+      localStorage.setItem("meta-page-id", inputPageId.trim());
+      localStorage.setItem("meta-instagram-id", inputIgId.trim());
+      localStorage.setItem("google-sheet-id", inputSheetId.trim());
+
+      setMetaToken(inputToken.trim());
+      setMetaPageId(inputPageId.trim());
+      setMetaIgId(inputIgId.trim());
+      setGoogleSheetId(inputSheetId.trim());
+
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          type: "Interne",
+          text: "Identifiants API mis à jour et sauvegardés !",
+          read: false,
+          createdAt: "À l'instant",
+        },
+        ...prev,
+      ]);
+    }
+  };
+
   const renderModule = () => {
     if (activeModule === "Dashboard") {
       return (
         <PageTransition moduleKey="dashboard">
           <div className="space-y-6">
-            <section>
-              <div className="mb-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Metriques en temps reel</p>
-                <h3 className="mt-2 text-xl font-bold text-white">Key Performance Indicators</h3>
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-[#071225]/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
+              <div>
+                <h3 className="text-xl font-bold text-white">Visualisation des Insights</h3>
+                <p className="text-xs text-gray-400 mt-1">Sélectionnez la période pour filtrer vos indicateurs de performance</p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {kpis.map((kpi, i) => (
-                  <KPICard key={kpi.label} kpi={kpi} delay={i * 0.08} />
-                ))}
-              </div>
-            </section>
+              {renderDateSelector()}
+            </div>
 
-            <section className="grid gap-6 xl:grid-cols-[1fr]">
+            <GlassCard>
+              <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+                <h3 className="text-lg font-bold text-white">Post Insights {displayInsights?.isForecast ? "(Prévisions de Croissance)" : "(Live from Meta API)"}</h3>
+                {displayInsights?.isForecast && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-xs font-semibold text-amber-300 shadow-lg shadow-amber-500/10">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Mode Prévisionnel Actif
+                  </span>
+                )}
+              </div>
+              {displayInsights ? (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-4">
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4 text-center">
+                    <p className="text-xs text-blue-300 font-semibold mb-1">Facebook Followers</p>
+                    <p className="text-3xl font-bold text-white">{displayInsights.facebook.followers.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4 text-center">
+                    <p className="text-xs text-blue-300 font-semibold mb-1">Facebook Likes</p>
+                    <p className="text-3xl font-bold text-white">{displayInsights.facebook.likes.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-pink-500/10 border border-pink-500/30 p-4 text-center">
+                    <p className="text-xs text-pink-300 font-semibold mb-1">Instagram Followers</p>
+                    <p className="text-3xl font-bold text-white">{displayInsights.instagram.followers.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-pink-500/10 border border-pink-500/30 p-4 text-center">
+                    <p className="text-xs text-pink-300 font-semibold mb-1">Instagram Posts</p>
+                    <p className="text-3xl font-bold text-white">{displayInsights.instagram.posts.toLocaleString()}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 opacity-50 font-mono text-sm">
+                  Loading Meta API Insights...
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard>
+              <h3 className="text-lg font-bold text-white mb-4">{t("metrics_title", "Métriques réseaux sociaux")}</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 mb-4">
+                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                  <p className="text-xs text-gray-400">{t("likes", "Likes")}</p>
+                  <p className="mt-1 text-lg font-bold text-pink-400">
+                    {displayInsights?.metrics?.totalLikes?.toLocaleString() ?? "0"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                  <p className="text-xs text-gray-400">{t("comments", "Commentaires")}</p>
+                  <p className="mt-1 text-lg font-bold text-blue-400">
+                    {displayInsights?.metrics?.totalComments?.toLocaleString() ?? "0"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                  <p className="text-xs text-gray-400">{t("shares", "Partages")}</p>
+                  <p className="mt-1 text-lg font-bold text-green-400">
+                    {displayInsights?.metrics?.totalShares?.toLocaleString() ?? "0"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                  <p className="text-xs text-gray-400">{t("reach", "Portée")}</p>
+                  <p className="mt-1 text-lg font-bold text-purple-400">
+                    {displayInsights?.metrics?.totalReach?.toLocaleString() ?? "0"}
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
+
+            <div className="grid gap-6 xl:grid-cols-2">
               <GlassCard>
-                <h3 className="text-lg font-bold text-white">Activite recente</h3>
-                <ul className="mt-4 space-y-3">
-                  {notifications.slice(0, 5).map((item, i) => (
-                    <motion.li
-                      key={item.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="flex gap-3 rounded-lg border border-white/5 bg-white/3 p-2.5"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
-                      <span className="text-sm text-gray-200">{item.text}</span>
-                    </motion.li>
-                  ))}
+                <h3 className="text-lg font-bold text-white">Evolution engagement</h3>
+                <div className="h-64 pt-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={engagementData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" />
+                      <YAxis stroke="rgba(255,255,255,0.5)" />
+                      <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
+                      <Line type="monotone" dataKey="engagement" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="reach" stroke="#4ade80" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+
+              <GlassCard>
+                <h3 className="text-lg font-bold text-white">Comparaison plateformes</h3>
+                <div className="h-64 pt-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={platformData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis dataKey="platform" stroke="rgba(255,255,255,0.5)" />
+                      <YAxis stroke="rgba(255,255,255,0.5)" />
+                      <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                        {platformData.map((item) => (
+                          <Cell key={item.platform} fill={item.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <GlassCard>
+                <h4 className="text-sm font-bold text-white mb-3">Performance équipe</h4>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Tâches terminées: 18/20</li>
+                  <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-400" /> Temps traitement: 2h 45m</li>
+                  <li className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-blue-400" /> Productivité: +8%</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-400" /> Deadlines respectées: 95%</li>
                 </ul>
               </GlassCard>
-            </section>
+
+              <GlassCard>
+                <h4 className="text-sm font-bold text-white mb-3">Performance campagnes</h4>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> ROI moyen: 245%</li>
+                  <li className="flex items-center gap-2"><ChartLine className="w-4 h-4 text-blue-400" /> Conversions: 312</li>
+                  <li className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-yellow-400" /> Coût par Lead: 47 MAD</li>
+                  <li className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#D4A017]" /> Meilleure plateforme: Meta</li>
+                </ul>
+              </GlassCard>
+
+              <GlassCard>
+                <h4 className="text-sm font-bold text-white mb-3">Audience</h4>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2"><Users className="w-4 h-4 text-blue-400" /> Abonnés gagnés: +1.2K</li>
+                  <li className="flex items-center gap-2"><Eye className="w-4 h-4 text-pink-400" /> Impressions: 48K</li>
+                  <li className="flex items-center gap-2"><Share2 className="w-4 h-4 text-purple-400" /> Clics sortants: 2.1K</li>
+                  <li className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> Taux de croissance: +18%</li>
+                </ul>
+              </GlassCard>
+            </div>
           </div>
         </PageTransition>
       );
     }
 
     if (activeModule === "Publications") {
+      const filteredPosts = posts.filter(p => {
+        if (publicationsFilter === "All") return true;
+        return p.platform === publicationsFilter;
+      });
+
       return (
         <PageTransition moduleKey="publications">
-          <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">🚀 n8n Workflow Control</h3>
-              <div className="mt-4 space-y-4">
-                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-                  <p className="text-sm text-blue-200 font-medium mb-3">Generate AI-Powered Content Instantly</p>
-                  <GenerateButton />
+          <div className="grid gap-6 xl:grid-cols-[1fr_3fr]">
+            <div className="space-y-6">
+              <GlassCard>
+                <h3 className="text-lg font-bold text-white">🚀 n8n Workflow Control</h3>
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+                    <p className="text-sm text-blue-200 font-medium mb-3">Generate AI-Powered Content Instantly</p>
+                    <GenerateButton />
+                  </div>
                 </div>
-              </div>
-              <div className="mt-6 border-t border-white/10 pt-6">
-                <h3 className="text-lg font-bold text-white">Programmer publication</h3>
-                <div className="mt-4 space-y-3">
-                <input
-                  value={postForm.title}
-                  onChange={(e) => setPostForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="Titre du post..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-gray-400 outline-none transition focus:border-blue-400 focus:bg-white/10"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={postForm.platform}
-                    onChange={(e) => setPostForm((prev) => ({ ...prev, platform: e.target.value }))}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white"
-                  >
-                    <option className="bg-slate-900">Instagram</option>
-                    <option className="bg-slate-900">Facebook</option>
-                    <option className="bg-slate-900">LinkedIn</option>
-                    <option className="bg-slate-900">TikTok</option>
-                  </select>
-                  <select
-                    value={postForm.status}
-                    onChange={(e) => setPostForm((prev) => ({ ...prev, status: e.target.value as PostStatus }))}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white"
-                  >
-                    {statusFlow.map((status) => (
-                      <option key={status} className="bg-slate-900">
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <input
-                  type="date"
-                  value={postForm.date}
-                  onChange={(e) => setPostForm((prev) => ({ ...prev, date: e.target.value }))}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-white"
-                />
-                <GlassBtn variant="primary" onClick={addPost} className="w-full">
-                  Ajouter publication
-                </GlassBtn>
-              </div>
-              </div>
-            </GlassCard>
+              </GlassCard>
 
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">Liste publications</h3>
-              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                {posts.map((post) => (
-                  <motion.div
-                    key={post.id}
-                    layout
-                    className="rounded-lg border border-white/10 bg-white/5 p-3 hover:bg-white/8 transition"
+              <GlassCard>
+                <h4 className="text-sm font-bold text-white mb-3">Statut des API</h4>
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between text-gray-300">
+                    <span className="flex items-center gap-1.5">🔵 Facebook Graph</span>
+                    {metaInsights?.facebook && !metaInsights.facebook.isFallback ? (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">🟢 Connecté (Réel)</span>
+                    ) : (
+                      <span className="text-amber-400 font-semibold">Simulé (Fallback)</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-gray-300">
+                    <span className="flex items-center gap-1.5">💖 Instagram Graph</span>
+                    {metaInsights?.instagram && !metaInsights.instagram.isFallback ? (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">🟢 Connecté (Réel)</span>
+                    ) : (
+                      <span className="text-amber-400 font-semibold">Simulé (Fallback)</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-gray-300 opacity-60">
+                    <span className="flex items-center gap-1.5">💼 LinkedIn API</span>
+                    <span className="text-amber-400 font-semibold">Non Connecté</span>
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+
+            <GlassCard className="flex flex-col h-[calc(100vh-200px)] overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Publications Réseaux Sociaux</h3>
+                  <p className="text-xs text-gray-400 mt-1">Gérez et suivez vos publications en temps réel (Meta Graph API)</p>
+                </div>
+                
+                {/* Visual tabs filter */}
+                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
+                  <button
+                    onClick={() => setPublicationsFilter("All")}
+                    className={clsx(
+                      "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
+                      publicationsFilter === "All" 
+                        ? "bg-[#D4A017] text-slate-950 shadow-md"
+                        : "text-gray-300 hover:text-white"
+                    )}
                   >
-                    <p className="font-semibold text-white">{post.title}</p>
-                    <p className="text-xs text-gray-400">{post.platform} • {post.date}</p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="rounded-full bg-blue-500/20 px-2.5 py-1 text-xs text-blue-300">{post.status}</span>
-                      <GlassBtn variant="subtle" size="sm" onClick={() => cyclePostStatus(post.id)}>
-                        Next
-                      </GlassBtn>
-                    </div>
-                  </motion.div>
-                ))}
+                    Toutes
+                  </button>
+                  <button
+                    onClick={() => setPublicationsFilter("Facebook")}
+                    className={clsx(
+                      "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1",
+                      publicationsFilter === "Facebook" 
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                        : "text-gray-300 hover:text-white"
+                    )}
+                  >
+                    <Globe className="w-3.5 h-3.5" /> Facebook
+                  </button>
+                  <button
+                    onClick={() => setPublicationsFilter("Instagram")}
+                    className={clsx(
+                      "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1",
+                      publicationsFilter === "Instagram" 
+                        ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md shadow-pink-500/20"
+                        : "text-gray-300 hover:text-white"
+                    )}
+                  >
+                    <Instagram className="w-3.5 h-3.5" /> Instagram
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid content list */}
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 pb-6">
+                {filteredPosts.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredPosts.map((post) => {
+                      const isFB = post.platform === "Facebook";
+                      return (
+                        <motion.div
+                          key={post.id}
+                          layout
+                          className="group relative rounded-xl border border-white/10 bg-gradient-to-b from-white/5 to-white/[0.02] overflow-hidden hover:border-[#D4A017]/30 hover:shadow-lg hover:shadow-[#D4A017]/5 transition-all duration-300 flex flex-col h-[400px]"
+                        >
+                          {/* Image visual wrapper */}
+                          <div className="h-44 w-full relative overflow-hidden bg-slate-950 border-b border-white/10">
+                            {post.image ? (
+                              <img
+                                src={post.image}
+                                alt="Visual Post"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-blue-900/30 to-purple-900/30 flex items-center justify-center">
+                                <Megaphone className="w-12 h-12 text-white/20" />
+                              </div>
+                            )}
+                            {/* Platform badge */}
+                            <span className={clsx(
+                              "absolute top-3 left-3 px-2.5 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-lg",
+                              isFB 
+                                ? "bg-blue-600/90 text-white border border-blue-400/30"
+                                : "bg-gradient-to-r from-pink-600 to-purple-600 text-white border border-pink-400/30"
+                            )}>
+                              {isFB ? <Globe className="w-3 h-3" /> : <Instagram className="w-3 h-3" />} {post.platform}
+                            </span>
+                          </div>
+
+                          {/* Post details */}
+                          <div className="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                              <p className="text-[10px] text-gray-400 flex items-center gap-1 mb-2 font-medium">
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                {post.date} à {post.dateTime || "14:00"}
+                              </p>
+                              <p className="text-xs text-gray-200 line-clamp-4 leading-relaxed font-normal whitespace-pre-wrap">
+                                {post.title}
+                              </p>
+                            </div>
+
+                            {/* Rich metrics details */}
+                            <div className="border-t border-white/5 pt-3 mt-3">
+                              {isFB ? (
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Vues</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><Eye className="w-3 h-3 text-blue-400" /> {post.views ?? 0}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Abonnés</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><TrendingUp className="w-3 h-3 text-emerald-400" /> +{post.netFollows ?? 0}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Imp.</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><BarChart3 className="w-3 h-3 text-purple-400" /> {post.impressions ?? 0}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Likes</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><Heart className="w-3 h-3 text-rose-400" /> {post.likes ?? 0}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Likes</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><Heart className="w-3 h-3 text-pink-500" /> {post.likes ?? 0}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Comms</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><MessageCircle className="w-3 h-3 text-pink-400" /> {post.comments ?? 0}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
+                                    <p className="text-[9px] text-gray-400 uppercase font-semibold">Eng.</p>
+                                    <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><TrendingUp className="w-3 h-3 text-purple-400" /> {((((post.likes ?? 0) + (post.comments ?? 0)) / 1245) * 100).toFixed(1)}%</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+                    <Megaphone className="w-12 h-12 text-gray-500 mx-auto mb-4 opacity-40" />
+                    <p className="text-sm text-gray-400">Aucune publication trouvée dans cette catégorie.</p>
+                  </div>
+                )}
               </div>
             </GlassCard>
           </div>
@@ -426,21 +1523,88 @@ export default function Home() {
       return (
         <PageTransition moduleKey="calendar">
           <GlassCard>
-            <h3 className="text-lg font-bold text-white">Calendrier editorial - Mai 2026</h3>
-            <p className="mt-1 text-sm text-blue-200">Vue mensuelle des publications programmees</p>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              {calendarDays.map((day) => {
-                const dateString = `2026-05-${String(day).padStart(2, "0")}`;
-                const events = posts.filter((p) => p.date === dateString);
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">Calendrier Éditorial</h3>
+                <p className="mt-1 text-xs text-gray-400">Vue mensuelle des publications programmées (Google Sheets)</p>
+              </div>
+              {renderDateSelector()}
+            </div>
+
+            {/* Calendar Days Header */}
+            <div className="grid grid-cols-7 gap-2 mb-3 text-center text-xs font-semibold text-[#D4A017] uppercase tracking-wider">
+              <div>Lun</div>
+              <div>Mar</div>
+              <div>Mer</div>
+              <div>Jeu</div>
+              <div>Ven</div>
+              <div>Sam</div>
+              <div>Dim</div>
+            </div>
+
+            {/* Calendar dynamic weekly grid */}
+            <div className="grid grid-cols-7 gap-2 custom-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto pb-4">
+              {calendarCells.map((cell, idx) => {
+                if (!cell.dayNum) {
+                  return (
+                    <div 
+                      key={`empty-${idx}`} 
+                      className={clsx(
+                        "min-h-[110px] rounded-xl border border-dashed opacity-20",
+                        theme === "dark" ? "border-white/5 bg-white/[0.01]" : "border-slate-300 bg-slate-100"
+                      )} 
+                    />
+                  );
+                }
+
+                const events = calendarPosts.filter((p) => p.date === cell.dateString);
+                
                 return (
-                  <div key={day} className="min-h-20 rounded-lg border border-white/10 bg-white/3 p-2">
-                    <p className="text-xs font-bold text-white">{day}</p>
-                    <div className="mt-1 space-y-1">
-                      {events.slice(0, 2).map((event) => (
-                        <p key={event.id} className="truncate rounded bg-blue-500/20 px-1 py-0.5 text-[10px] text-blue-300">
-                          {event.platform}
-                        </p>
-                      ))}
+                  <div 
+                    key={cell.dayNum} 
+                    className={clsx(
+                      "min-h-[110px] rounded-xl border p-2 flex flex-col transition-all duration-200",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                        : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-sm"
+                    )}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                       <p className={clsx("text-xs font-bold", theme === "dark" ? "text-white" : "text-slate-800")}>{cell.dayNum}</p>
+                       {events.length > 0 && (
+                         <span className="text-[9px] font-bold bg-[#D4A017]/20 text-[#D4A017] border border-[#D4A017]/30 px-1.5 py-0.5 rounded-full">
+                           {events.length}
+                         </span>
+                       )}
+                    </div>
+                    
+                    <div className="mt-1 space-y-1.5 flex-1 overflow-y-auto max-h-[70px] scrollbar-none">
+                      {events.map((event) => {
+                        const isPub = event.status.includes("Publie");
+                        const isRej = event.status.includes("Rejete");
+                        return (
+                          <div 
+                            key={event.id} 
+                            className={clsx(
+                              "rounded p-1 text-[9px] flex flex-col gap-0.5 border transition-all hover:scale-[1.02]",
+                              isPub 
+                                ? theme === "dark"
+                                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300 text-[8px]" 
+                                  : "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 text-[8px]"
+                                : isRej
+                                  ? theme === "dark"
+                                    ? "bg-red-500/10 border-red-500/20 text-red-300 text-[8px]"
+                                    : "bg-red-500/15 border-red-500/30 text-red-700 text-[8px]"
+                                  : theme === "dark"
+                                    ? "bg-[#D4A017]/10 border-[#D4A017]/20 text-[#D4A017] text-[8px]"
+                                    : "bg-[#D4A017]/15 border-[#D4A017]/30 text-[#b07b12] text-[8px]"
+                            )}
+                          >
+                            <span className="font-semibold truncate">{event.title}</span>
+                            <span className="opacity-80 flex items-center gap-0.5 text-[8px]"><Clock className="w-2.5 h-2.5" /> {event.dateTime}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -504,89 +1668,7 @@ export default function Home() {
       );
     }
 
-    if (activeModule === "Leads") {
-      return (
-        <PageTransition moduleKey="leads">
-          <GlassCard>
-            <h3 className="text-lg font-bold text-white">Pipeline leads</h3>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {leads.map((lead, i) => (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/8 transition"
-                >
-                  <p className="font-semibold text-white">{lead.name}</p>
-                  <p className="text-sm text-gray-400">Value: {lead.value.toLocaleString()} MAD</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="rounded-full bg-purple-500/20 px-2.5 py-1 text-xs text-purple-300">{lead.stage}</span>
-                    <GlassBtn variant="subtle" size="sm" onClick={() => moveLead(lead.id)}>
-                      →
-                    </GlassBtn>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </GlassCard>
-        </PageTransition>
-      );
-    }
 
-    if (activeModule === "Campagnes") {
-      const roi = Math.round(((campaignBudget * 1.7 - campaignSpent) / campaignSpent) * 100);
-      return (
-        <PageTransition moduleKey="campaigns">
-          <div className="grid gap-6 xl:grid-cols-2">
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">Budget & Performance</h3>
-              <div className="mt-4 space-y-3 text-sm">
-                <label className="block">
-                  <span className="text-xs text-blue-300">Budget total</span>
-                  <input
-                    type="number"
-                    value={campaignBudget}
-                    onChange={(e) => setCampaignBudget(Number(e.target.value || 0))}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs text-blue-300">Depense actuelle</span>
-                  <input
-                    type="number"
-                    value={campaignSpent}
-                    onChange={(e) => setCampaignSpent(Number(e.target.value || 0))}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white"
-                  />
-                </label>
-              </div>
-            </GlassCard>
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">KPI Campagne</h3>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">ROI</p>
-                  <p className="mt-1 text-xl font-bold text-green-400">{Number.isFinite(roi) ? roi : 0}%</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Conversions</p>
-                  <p className="mt-1 text-xl font-bold text-blue-400">312</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">CPL</p>
-                  <p className="mt-1 text-xl font-bold text-yellow-400">47 MAD</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Best: Meta</p>
-                  <p className="mt-1 text-sm font-bold text-purple-400">Advantage</p>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        </PageTransition>
-      );
-    }
 
     if (activeModule === "Workflows") {
       return (
@@ -631,7 +1713,14 @@ export default function Home() {
                   <h3 className="text-lg font-bold text-white">Tableau Kanban</h3>
                   <p className="mt-1 text-sm text-blue-200">Drag & drop tasks — priorités, deadlines, assignations</p>
                 </div>
-                <GlassBtn variant="primary" size="sm">+ Nouvelle tâche</GlassBtn>
+                <GlassBtn variant="primary" size="sm" onClick={() => {
+                  setNewTaskTitle("");
+                  setNewTaskColumn("A faire");
+                  setNewTaskPriority("Normale");
+                  setIsTaskModalOpen(true);
+                }} className="flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" /> Nouvelle tâche
+                </GlassBtn>
               </div>
             </GlassCard>
 
@@ -642,25 +1731,50 @@ export default function Home() {
                     key={column}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => onTaskDrop(column)}
-                    className="rounded-lg bg-gradient-to-b from-white/8 to-white/3 border border-white/10 p-3 min-h-96"
+                    className={clsx(
+                      "rounded-lg p-3 min-h-96 transition-all duration-300 border",
+                      theme === "dark"
+                        ? "bg-gradient-to-b from-white/8 to-white/3 border-white/10"
+                        : "bg-slate-100/60 border-slate-200"
+                    )}
                   >
-                    <p className="mb-3 text-sm font-bold text-white">{column}</p>
+                    <p className={clsx(
+                      "mb-3 text-sm font-bold transition-colors duration-300",
+                      theme === "dark" ? "text-white" : "text-slate-800"
+                    )}>{column}</p>
                     <div className="space-y-2">
                       {tasks.length === 0 ? (
                         <div className="text-center py-12">
-                          <p className="text-xs text-gray-400">No tasks</p>
-                          <p className="text-xs text-gray-500 mt-1">Connect database to populate</p>
+                          <p className="text-xs text-gray-400">Aucune tâche</p>
+                          <p className="text-[10px] text-gray-500 mt-1">Glissez une tâche ici</p>
                         </div>
                       ) : (
                         tasks.map((task) => (
                           <motion.div
-                            key={task}
+                            key={task.id}
                             draggable
                             onDragStart={() => setDraggedTask({ task, from: column })}
                             layout
-                            className="cursor-grab active:cursor-grabbing rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-white/10 p-2.5 text-xs text-gray-200 hover:border-white/20 transition"
+                            className={clsx(
+                              "cursor-grab active:cursor-grabbing rounded-lg p-2.5 text-xs transition border font-medium flex items-center justify-between group",
+                              theme === "dark"
+                                ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-white/10 text-gray-200 hover:border-white/20"
+                                : "bg-gradient-to-r from-blue-500/5 to-purple-500/5 border-slate-200 text-slate-700 hover:border-slate-300 shadow-sm"
+                            )}
                           >
-                            {task}
+                            <span className="truncate pr-1">
+                              {dbPriorityToEmoji(task.priority)} {task.title}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTaskDelete(task.id);
+                              }}
+                              className="text-red-400 hover:text-red-600 transition p-0.5 rounded hover:bg-red-500/10 opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1 flex-shrink-0"
+                              title="Supprimer la tâche"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
                           </motion.div>
                         ))
                       )}
@@ -673,31 +1787,55 @@ export default function Home() {
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               <GlassCard>
                 <h4 className="text-sm font-bold text-white">Priorités</h4>
-                <ul className="mt-3 space-y-2 text-xs text-gray-300">
-                  <li>🔴 Critique</li>
-                  <li>🟠 Haute</li>
-                  <li>🟡 Normale</li>
-                  <li>🟢 Basse</li>
+                <ul className="mt-3 space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2 font-medium text-red-400">
+                    <AlertCircle className="w-4 h-4 text-red-500" /> Critique
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-amber-400">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" /> Haute
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-yellow-400">
+                    <ArrowRightCircle className="w-4 h-4 text-yellow-500" /> Normale
+                  </li>
+                  <li className="flex items-center gap-2 font-medium text-emerald-400">
+                    <ArrowDownCircle className="w-4 h-4 text-emerald-500" /> Basse
+                  </li>
                 </ul>
               </GlassCard>
 
               <GlassCard>
                 <h4 className="text-sm font-bold text-white">Statuts</h4>
-                <ul className="mt-3 space-y-2 text-xs text-gray-300">
-                  <li>📋 À faire</li>
-                  <li>⚙️ En cours</li>
-                  <li>✅ Validation</li>
-                  <li>✔️ Terminé</li>
+                <ul className="mt-3 space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2">
+                    <ListTodo className="w-4 h-4 text-blue-400" /> À faire
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-400" /> En cours
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Validation
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" /> Terminé
+                  </li>
                 </ul>
               </GlassCard>
 
               <GlassCard>
-                <h4 className="text-sm font-bold text-white">Assignations</h4>
-                <ul className="mt-3 space-y-2 text-xs text-gray-300">
-                  <li>Auto-assign par rôle</li>
-                  <li>Attribution manuelle</li>
-                  <li>Notifications</li>
-                  <li>Suivi temps</li>
+                <h4 className="text-sm font-bold text-white">Assignations & Suivi</h4>
+                <ul className="mt-3 space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#D4A017]" /> Auto-assign par rôle
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <UserRound className="w-4 h-4 text-blue-400" /> Attribution manuelle
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-pink-400" /> Notifications live
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-purple-400" /> Suivi du temps réel
+                  </li>
                 </ul>
               </GlassCard>
             </div>
@@ -710,25 +1848,59 @@ export default function Home() {
       return (
         <PageTransition moduleKey="team">
           <GlassCard>
-            <h3 className="text-lg font-bold text-white">Performance equipe</h3>
+            <h3 className={clsx(
+              "text-lg font-bold transition-colors duration-300",
+              theme === "dark" ? "text-white" : "text-slate-800"
+            )}>
+              {t("team_performance", "Performance équipe")}
+            </h3>
             <div className="mt-4 space-y-3">
-              {teamSeed.map((member, i) => (
-                <motion.div
-                  key={member.name}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/8 transition"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{member.name}</p>
-                    <p className="text-sm text-gray-400">{member.role} • {member.tasks} taches</p>
-                  </div>
-                  <div className="rounded-lg bg-gradient-to-r from-orange-500/20 to-red-500/20 px-3 py-1 text-xs font-bold text-orange-300">
-                    {member.score}%
-                  </div>
-                </motion.div>
-              ))}
+              {dynamicTeam.length === 0 ? (
+                <div className={clsx(
+                  "text-center py-12 px-4 border border-dashed rounded-xl transition duration-300",
+                  theme === "dark" ? "border-white/10 bg-white/5" : "border-slate-200 bg-black/5"
+                )}>
+                  <Users className="w-10 h-10 text-[#D4A017] mx-auto mb-3 animate-pulse" />
+                  <p className={clsx("text-sm font-semibold", theme === "dark" ? "text-white" : "text-slate-800")}>
+                    {language === "العربية" ? "لا يوجد أعضاء في الفريق حالياً" : language === "English" ? "No team members found" : "Aucun membre de l'équipe"}
+                  </p>
+                  <p className={clsx("text-xs mt-1.5 max-w-md mx-auto", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                    {language === "العربية" 
+                      ? "قم بتسجيل حساب جديد بدور (Community Manager, Manager, Designer...) عبر بوابة التسجيل للظهور هنا."
+                      : language === "English"
+                      ? "Register new accounts with team roles (Community Manager, Manager, Designer...) via the portal to see them here."
+                      : "Enregistrez de nouveaux comptes avec des rôles d'équipe (Community Manager, Manager, Designer...) via le portail d'inscription pour les afficher ici."}
+                  </p>
+                </div>
+              ) : (
+                dynamicTeam.map((member, i) => (
+                  <motion.div
+                    key={member.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                    className={clsx(
+                      "flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition duration-300",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 hover:bg-white/8 text-white"
+                        : "border-slate-200 bg-black/5 hover:bg-black/10 text-slate-800 shadow-sm"
+                    )}
+                  >
+                    <div>
+                      <p className="font-semibold">{member.name}</p>
+                      <p className={clsx("text-sm mt-0.5", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                        {member.role} • {member.tasks} {member.tasks > 1 ? "tâches" : "tâche"} • {member.email}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={clsx("text-xs font-mono opacity-65", theme === "dark" ? "text-gray-400" : "text-slate-500")}>Performance</span>
+                      <div className="rounded-lg bg-gradient-to-r from-orange-500/20 to-red-500/20 px-3 py-1 text-xs font-bold text-orange-300 border border-orange-500/20 shadow-md">
+                        {member.score}%
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
             </div>
           </GlassCard>
         </PageTransition>
@@ -736,140 +1908,406 @@ export default function Home() {
     }
 
     if (activeModule === "Messages") {
+      const filteredPosts = posts.filter((post) => {
+        const matchesPlatform =
+          messagesPlatformFilter === "All" ||
+          post.platform.toLowerCase() === messagesPlatformFilter.toLowerCase();
+        const matchesSearch =
+          post.title.toLowerCase().includes(messagesSearchQuery.toLowerCase()) ||
+          (post.platform || "").toLowerCase().includes(messagesSearchQuery.toLowerCase());
+        return matchesPlatform && matchesSearch;
+      });
+
+      const currentSelectedPost = posts.find((p) => String(p.id) === String(selectedPostId)) || filteredPosts[0];
+
       return (
         <PageTransition moduleKey="messages">
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">Inbox centralisee</h3>
-              <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                {messages.map((msg, i) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="rounded-lg border border-white/10 bg-white/5 p-3 hover:bg-white/8 transition"
-                  >
-                    <p className="font-semibold text-white">{msg.channel} | {msg.client}</p>
-                    <p className="text-sm text-gray-300">{msg.text}</p>
-                    <p className="mt-1 text-xs text-gray-500">→ {msg.assigned}</p>
-                  </motion.div>
-                ))}
+          <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+            {/* Left Pane - Publications List */}
+            <GlassCard className="flex flex-col h-[calc(100vh-210px)] overflow-hidden !p-4" hover={false}>
+              <div className="mb-4">
+                <h3 className={clsx(
+                  "text-lg font-bold flex items-center gap-2",
+                  theme === "dark" ? "text-white" : "text-slate-800"
+                )}>
+                  <MessageSquare className="w-5 h-5 text-[#D4A017]" />
+                  Publications & Flux API
+                </h3>
+                <p className={clsx(
+                  "text-xs mt-0.5",
+                  theme === "dark" ? "text-gray-400" : "text-slate-500"
+                )}>
+                  Gérez les commentaires et répondez en direct
+                </p>
+              </div>
+
+              {/* Search & Filters */}
+              <div className="space-y-2 mb-3">
+                <div className={clsx(
+                  "relative flex items-center rounded-xl border px-3 py-1.5 transition-all",
+                  theme === "dark"
+                    ? "border-white/10 bg-white/5 focus-within:border-[#D4A017]/50"
+                    : "border-slate-200 bg-black/5 focus-within:border-[#D4A017]/50"
+                )}>
+                  <Search className={clsx("w-4 h-4 mr-2", theme === "dark" ? "text-gray-400" : "text-slate-500")} />
+                  <input
+                    type="text"
+                    value={messagesSearchQuery}
+                    onChange={(e) => setMessagesSearchQuery(e.target.value)}
+                    placeholder="Rechercher une publication..."
+                    className={clsx(
+                      "w-full bg-transparent text-xs outline-none",
+                      theme === "dark" ? "text-white placeholder-gray-500" : "text-slate-800 placeholder-slate-400"
+                    )}
+                  />
+                  {messagesSearchQuery && (
+                    <button onClick={() => setMessagesSearchQuery("")} className="text-gray-400 hover:text-white">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Platform Toggle */}
+                <div className="flex gap-1 bg-black/10 dark:bg-white/5 p-1 rounded-xl">
+                  {(["All", "Facebook", "Instagram"] as const).map((plat) => (
+                    <button
+                      key={plat}
+                      onClick={() => setMessagesPlatformFilter(plat)}
+                      className={clsx(
+                        "flex-1 text-center py-1 text-[11px] font-semibold rounded-lg transition-all",
+                        messagesPlatformFilter === plat
+                          ? "bg-gradient-to-r from-[#D4A017] to-[#B07B12] text-slate-950 font-bold shadow-md"
+                          : theme === "dark"
+                          ? "text-gray-400 hover:text-white hover:bg-white/5"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-black/5"
+                      )}
+                    >
+                      {plat === "All" ? "Tous" : plat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scrollable list */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {filteredPosts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
+                      Aucune publication trouvée
+                    </p>
+                  </div>
+                ) : (
+                  filteredPosts.map((post, i) => {
+                    const isSelected = currentSelectedPost && String(post.id) === String(currentSelectedPost.id);
+                    return (
+                      <motion.div
+                        key={post.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        onClick={() => {
+                          setSelectedPostId(post.id);
+                          setSelectedComment(null);
+                        }}
+                        className={clsx(
+                          "flex gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none",
+                          isSelected
+                            ? theme === "dark"
+                              ? "border-[#D4A017]/40 bg-[#D4A017]/10 shadow-lg shadow-[#D4A017]/5"
+                              : "border-[#D4A017] bg-[#D4A017]/5 shadow-sm"
+                            : theme === "dark"
+                            ? "border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/10"
+                            : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300"
+                        )}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 flex items-center justify-center border border-white/10">
+                          {post.image ? (
+                            <img src={post.image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-sm font-bold text-gray-500">
+                              {post.platform === "Facebook" ? "FB" : "IG"}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Text / Platform */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <span className={clsx(
+                              "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full",
+                              post.platform === "Facebook"
+                                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                : "bg-pink-500/10 text-pink-400 border border-pink-500/20"
+                            )}>
+                              {post.platform}
+                            </span>
+                            <span className={clsx("text-[9px]", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
+                              {post.date}
+                            </span>
+                          </div>
+                          <p className={clsx(
+                            "text-xs line-clamp-2 leading-tight font-medium",
+                            theme === "dark" ? "text-gray-300" : "text-slate-700"
+                          )}>
+                            {post.title}
+                          </p>
+                        </div>
+
+                        {/* Comments Count Badge */}
+                        <div className="flex flex-col items-center justify-center">
+                          <span className={clsx(
+                            "text-[9px] font-bold px-2 py-0.5 rounded-full",
+                            (post.commentsList?.length || post.comments || 0) > 0
+                              ? "bg-[#D4A017]/20 text-[#D4A017]"
+                              : theme === "dark" ? "bg-white/5 text-gray-500" : "bg-black/5 text-slate-400"
+                          )}>
+                            {post.commentsList?.length || post.comments || 0}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
               </div>
             </GlassCard>
 
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white">Reponse rapide</h3>
-              <textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                rows={6}
-                placeholder="Ecrire une reponse..."
-                className="mt-4 w-full rounded-lg border border-white/10 bg-white/5 p-3 text-white placeholder-gray-500 outline-none focus:border-blue-400 focus:bg-white/8"
-              />
-              <GlassBtn variant="primary" onClick={sendReply} className="mt-3 w-full">
-                Envoyer
-              </GlassBtn>
+            {/* Right Pane - Comments Thread & Composer */}
+            <GlassCard className="flex flex-col h-[calc(100vh-210px)] overflow-hidden !p-4" hover={false}>
+              {!currentSelectedPost ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-[#D4A017] mb-4 animate-pulse">
+                    <MessageSquare className="w-8 h-8" />
+                  </div>
+                  <h4 className={clsx(
+                    "text-lg font-bold",
+                    theme === "dark" ? "text-white" : "text-slate-800"
+                  )}>
+                    Sélectionnez une publication
+                  </h4>
+                  <p className={clsx(
+                    "text-sm max-w-sm mt-1",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Choisissez un post sur le panneau de gauche pour gérer ses commentaires et envoyer vos réponses.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Selected Post Header */}
+                  <div className={clsx(
+                    "pb-3 border-b mb-3 flex items-start gap-4",
+                    theme === "dark" ? "border-white/10" : "border-slate-200"
+                  )}>
+                    {currentSelectedPost.image && (
+                      <img
+                        src={currentSelectedPost.image}
+                        alt=""
+                        className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-white/10"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={clsx(
+                          "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full",
+                          currentSelectedPost.platform === "Facebook"
+                            ? "bg-blue-500/10 text-blue-400"
+                            : "bg-pink-500/10 text-pink-400"
+                        )}>
+                          {currentSelectedPost.platform}
+                        </span>
+                        <span className={clsx("text-xs font-semibold", theme === "dark" ? "text-[#D4A017]" : "text-amber-600")}>
+                          Flux direct Meta Graph API
+                        </span>
+                      </div>
+                      <p className={clsx(
+                        "text-xs line-clamp-2 leading-snug font-medium",
+                        theme === "dark" ? "text-gray-300" : "text-slate-600"
+                      )}>
+                        {currentSelectedPost.title}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Comments Thread List */}
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-4 custom-scrollbar">
+                    {(!currentSelectedPost.commentsList || currentSelectedPost.commentsList.length === 0) ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center py-16">
+                        <MessageCircle className="w-10 h-10 text-gray-500 mb-2" />
+                        <p className={clsx("text-sm font-semibold", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                          Aucun commentaire sur cette publication
+                        </p>
+                        <p className={clsx("text-xs mt-0.5 max-w-xs", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
+                          Les nouveaux commentaires s&apos;afficheront automatiquement dès leur réception.
+                        </p>
+                      </div>
+                    ) : (
+                      currentSelectedPost.commentsList.map((c: any) => {
+                        const isSelectedToReply = selectedComment && String(selectedComment.id) === String(c.id);
+                        const isCM = c.from === "Community Manager (Moi)";
+                        const initials = (c.from || "U")
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")
+                          .substring(0, 2)
+                          .toUpperCase();
+
+                        const hash = (c.from || "User").split("").reduce((acc: number, char: string) => char.charCodeAt(0) + acc, 0);
+                        const hue = hash % 360;
+                        const avatarBg = `hsl(${hue}, 65%, 40%)`;
+
+                        return (
+                          <div
+                            key={c.id}
+                            className={clsx(
+                              "flex gap-3 transition-all rounded-xl p-2.5",
+                              c.isReply || isCM ? "ml-8 bg-black/5 dark:bg-white/[0.01]" : "",
+                              isSelectedToReply ? "ring-1 ring-[#D4A017]/50 bg-[#D4A017]/5" : ""
+                            )}
+                          >
+                            {/* Initials Avatar */}
+                            {c.isReply || isCM ? (
+                              <div className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{ backgroundColor: "#D4A017" }}>
+                                CM
+                              </div>
+                            ) : (
+                              <div
+                                className="w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0 shadow-sm"
+                                style={{ backgroundColor: avatarBg }}
+                              >
+                                {initials}
+                              </div>
+                            )}
+
+                            {/* Comment details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className={clsx(
+                                  "text-xs font-bold",
+                                  isCM ? "text-[#D4A017]" : theme === "dark" ? "text-white" : "text-slate-800"
+                                )}>
+                                  {c.from}
+                                </span>
+                                <span className={clsx("text-[10px]", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
+                                  {c.date}
+                                </span>
+                              </div>
+
+                              <p className={clsx(
+                                "text-xs leading-relaxed break-words",
+                                theme === "dark" ? "text-gray-200" : "text-slate-700"
+                              )}>
+                                {c.isReply && <CornerDownRight className="inline w-3 h-3 mr-1 text-[#D4A017]" />}
+                                {c.text}
+                              </p>
+
+                              {/* Action Footer */}
+                              {!c.isReply && !isCM && (
+                                <div className="mt-1.5 flex items-center gap-3">
+                                  <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-extrabold flex items-center gap-1 select-none">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping" />
+                                    Réponse possible
+                                  </span>
+
+                                  <button
+                                    onClick={() => setSelectedComment(c)}
+                                    className={clsx(
+                                      "text-[10px] font-bold transition-all px-2 py-0.5 rounded-lg border",
+                                      isSelectedToReply
+                                        ? "border-[#D4A017] text-[#D4A017] bg-[#D4A017]/10"
+                                        : theme === "dark"
+                                        ? "border-white/10 text-gray-400 hover:text-white hover:bg-white/5"
+                                        : "border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                                    )}
+                                  >
+                                    {isSelectedToReply ? "Ciblé dans le composer" : "Répondre"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Composer & Pinned Controls */}
+                  <div className={clsx(
+                    "pt-3 border-t",
+                    theme === "dark" ? "border-white/10" : "border-slate-200"
+                  )}>
+                    {selectedComment ? (
+                      <div className="flex items-center justify-between px-3 py-1.5 mb-2 rounded-lg bg-[#D4A017]/10 border border-[#D4A017]/20 text-xs">
+                        <span className={clsx(
+                          "font-medium",
+                          theme === "dark" ? "text-gray-300" : "text-slate-700"
+                        )}>
+                          En réponse à <strong className="text-[#D4A017]">@{selectedComment.from}</strong> : &quot;{selectedComment.text.substring(0, 30)}...&quot;
+                        </span>
+                        <button
+                          onClick={() => setSelectedComment(null)}
+                          className="p-0.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-full"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={clsx(
+                        "px-3 py-1.5 mb-2 rounded-lg text-xs font-semibold select-none",
+                        theme === "dark" ? "bg-white/5 text-gray-400" : "bg-black/5 text-slate-500"
+                      )}>
+                        💡 Sélectionnez un commentaire spécifique ci-dessus pour lui répondre directement
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 items-end">
+                      <textarea
+                        value={commentReplyText}
+                        onChange={(e) => setCommentReplyText(e.target.value)}
+                        placeholder={
+                          selectedComment
+                            ? `Écrivez votre réponse à @${selectedComment.from}...`
+                            : "Veuillez sélectionner un commentaire spécifique ci-dessus pour y répondre."
+                        }
+                        disabled={!selectedComment || isPostingReply}
+                        rows={2}
+                        className={clsx(
+                          "flex-1 w-full rounded-xl border p-3 text-xs outline-none focus:ring-1 focus:ring-[#D4A017]/50 resize-none transition-all",
+                          !selectedComment ? "opacity-60 cursor-not-allowed" : "",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                            : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:bg-slate-50 shadow-sm"
+                        )}
+                      />
+                      <GlassBtn
+                        variant="primary"
+                        disabled={!selectedComment || !commentReplyText.trim() || isPostingReply}
+                        loading={isPostingReply}
+                        onClick={() => {
+                          if (selectedComment) {
+                            handleSendCommentReply(
+                              selectedComment.id,
+                              commentReplyText,
+                              currentSelectedPost.platform
+                            );
+                          }
+                        }}
+                        className="h-10 px-4 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                      >
+                        {isPostingReply ? (
+                          "Publication..."
+                        ) : (
+                          <>
+                            Envoyer
+                            <ArrowRightCircle className="w-4 h-4" />
+                          </>
+                        )}
+                      </GlassBtn>
+                    </div>
+                  </div>
+                </>
+              )}
             </GlassCard>
-          </div>
-        </PageTransition>
-      );
-    }
-
-    if (activeModule === "Analytics") {
-      return (
-        <PageTransition moduleKey="analytics">
-          <div className="space-y-6">
-            <GlassCard>
-              <h3 className="text-lg font-bold text-white mb-4">Métriques réseaux sociaux</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 mb-4">
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Likes</p>
-                  <p className="mt-1 text-lg font-bold text-pink-400">2.4K</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Commentaires</p>
-                  <p className="mt-1 text-lg font-bold text-blue-400">832</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Partages</p>
-                  <p className="mt-1 text-lg font-bold text-green-400">456</p>
-                </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">Portée</p>
-                  <p className="mt-1 text-lg font-bold text-purple-400">14.2K</p>
-                </div>
-              </div>
-            </GlassCard>
-
-            <div className="grid gap-6 xl:grid-cols-2">
-              <GlassCard>
-                <h3 className="text-lg font-bold text-white">Evolution engagement</h3>
-                <div className="h-64 pt-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={engagementData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" />
-                      <YAxis stroke="rgba(255,255,255,0.5)" />
-                      <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
-                      <Line type="monotone" dataKey="engagement" stroke="#60a5fa" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="reach" stroke="#4ade80" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </GlassCard>
-
-              <GlassCard>
-                <h3 className="text-lg font-bold text-white">Comparaison plateformes</h3>
-                <div className="h-64 pt-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={platformData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="platform" stroke="rgba(255,255,255,0.5)" />
-                      <YAxis stroke="rgba(255,255,255,0.5)" />
-                      <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                        {platformData.map((item) => (
-                          <Cell key={item.platform} fill={item.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </GlassCard>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <GlassCard>
-                <h4 className="text-sm font-bold text-white mb-3">Performance équipe</h4>
-                <ul className="space-y-2 text-xs text-gray-300">
-                  <li>✓ Tâches terminées: 18/20</li>
-                  <li>⏱ Temps traitement: 2h 45m</li>
-                  <li>📈 Productivité: +8%</li>
-                  <li>✅ Deadlines: 95%</li>
-                </ul>
-              </GlassCard>
-
-              <GlassCard>
-                <h4 className="text-sm font-bold text-white mb-3">Performance campagnes</h4>
-                <ul className="space-y-2 text-xs text-gray-300">
-                  <li>💰 ROI: 245%</li>
-                  <li>📊 Conversions: 312</li>
-                  <li>💵 Coût/Lead: 47 MAD</li>
-                  <li>⭐ Meilleure: Meta</li>
-                </ul>
-              </GlassCard>
-
-              <GlassCard>
-                <h4 className="text-sm font-bold text-white mb-3">Audience</h4>
-                <ul className="space-y-2 text-xs text-gray-300">
-                  <li>👥 Abonnés gagnés: +1.2K</li>
-                  <li>📊 Impressions: 48K</li>
-                  <li>🔗 Clics: 2.1K</li>
-                  <li>↕️ Croissance: +18%</li>
-                </ul>
-              </GlassCard>
-            </div>
           </div>
         </PageTransition>
       );
@@ -894,21 +2332,21 @@ export default function Home() {
             <div className="grid gap-3 md:grid-cols-2">
               <GlassCard>
                 <h4 className="text-sm font-bold text-white mb-3">Types de notifications</h4>
-                <ul className="space-y-2 text-xs text-gray-300">
-                  <li>📲 Push notifications</li>
-                  <li>📧 Email</li>
-                  <li>💬 WhatsApp</li>
-                  <li>🔔 Notifications internes</li>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-blue-400" /> Push notifications</li>
+                  <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-amber-400" /> Email</li>
+                  <li className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-green-400" /> WhatsApp</li>
+                  <li className="flex items-center gap-2"><Bell className="w-4 h-4 text-pink-400" /> Notifications internes</li>
                 </ul>
               </GlassCard>
 
               <GlassCard>
                 <h4 className="text-sm font-bold text-white mb-3">Notifications automatiques</h4>
-                <ul className="space-y-2 text-xs text-gray-300">
-                  <li>⏰ Retard tâche détecté</li>
-                  <li>💬 Nouveau message client</li>
-                  <li>✅ Validation demandée</li>
-                  <li>⚙️ Workflow exécuté</li>
+                <ul className="space-y-2.5 text-xs text-gray-300">
+                  <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-red-400" /> Retard tâche détecté</li>
+                  <li className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-[#D4A017]" /> Nouveau message client</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Validation demandée</li>
+                  <li className="flex items-center gap-2"><WandSparkles className="w-4 h-4 text-blue-400" /> Workflow exécuté</li>
                 </ul>
               </GlassCard>
             </div>
@@ -995,16 +2433,16 @@ export default function Home() {
       <PageTransition moduleKey="settings">
         <div className="space-y-6">
           <GlassCard>
-            <h3 className="text-lg font-bold text-white">Paramètres du Dashboard</h3>
-            <p className="mt-1 text-sm text-blue-200">Gestion complète de l&apos;interface et des autorisations</p>
+            <h3 className="text-lg font-bold text-white">{t("settings_title", "Paramètres du Dashboard")}</h3>
+            <p className="mt-1 text-sm text-blue-200">{t("settings_desc", "Gestion complète de l'interface et des identifiants de connexion API")}</p>
           </GlassCard>
 
           <div className="grid gap-6 md:grid-cols-2">
             <GlassCard>
-              <h4 className="text-sm font-bold text-white mb-3">🎨 Apparence</h4>
+              <h4 className="text-sm font-bold text-white mb-3">🎨 {t("apparence", "Apparence")}</h4>
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Thème</p>
+                  <p className="text-xs text-gray-400 mb-2">{t("theme", "Thème")}</p>
                   <div className="flex gap-2">
                     <GlassBtn
                       variant={theme === "light" ? "primary" : "secondary"}
@@ -1023,58 +2461,135 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Langue</p>
-                  <select className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white">
-                    <option className="bg-slate-900">Français</option>
-                    <option className="bg-slate-900">English</option>
-                    <option className="bg-slate-900">Español</option>
-                    <option className="bg-slate-900">العربية</option>
+                  <p className="text-xs text-gray-400 mb-2">{t("langue", "Langue")}</p>
+                  <select
+                    value={language}
+                    onChange={(e) => {
+                      setLanguage(e.target.value);
+                      localStorage.setItem("dashboard-language", e.target.value);
+                    }}
+                    className="w-full rounded-lg border border-white/10 bg-[#0d1e3d] px-3 py-2 text-sm text-white focus:border-[#D4A017]/50 focus:ring-0 cursor-pointer"
+                  >
+                    <option value="Français" className="bg-slate-900 text-white">Français</option>
+                    <option value="English" className="bg-slate-900 text-white">English</option>
+                    <option value="العربية" className="bg-slate-900 text-white">العربية</option>
                   </select>
                 </div>
               </div>
             </GlassCard>
 
             <GlassCard>
-              <h4 className="text-sm font-bold text-white mb-3">👥 Utilisateurs & Permissions</h4>
+              <h4 className="text-sm font-bold text-white mb-3">👥 {t("userspermissions", "Utilisateurs & Permissions")}</h4>
               <ul className="space-y-2 text-xs text-gray-300">
-                <li className="flex justify-between"><span>Administrateur</span> <span className="text-green-400">Full Access</span></li>
-                <li className="flex justify-between"><span>Manager</span> <span className="text-blue-400">Campagnes + Équipe</span></li>
-                <li className="flex justify-between"><span>Community Manager</span> <span className="text-blue-400">Pub + Messages</span></li>
-                <li className="flex justify-between"><span>Designer</span> <span className="text-purple-400">Content</span></li>
-                <li className="flex justify-between"><span>Commercial</span> <span className="text-orange-400">Leads</span></li>
-                <li className="flex justify-between"><span>Client</span> <span className="text-yellow-400">Analytics</span></li>
+                <li className="flex justify-between"><span>{t("admin_role", "Administrateur")}</span> <span className="text-green-400">Full Access</span></li>
+                <li className="flex justify-between"><span>{t("manager_role", "Manager")}</span> <span className="text-blue-400">Campagnes + Équipe</span></li>
+                <li className="flex justify-between"><span>{t("cm_role", "Community Manager")}</span> <span className="text-blue-400">Pub + Messages</span></li>
+                <li className="flex justify-between"><span>{t("designer_role", "Designer")}</span> <span className="text-purple-400">Content</span></li>
+                <li className="flex justify-between"><span>{t("commercial_role", "Commercial")}</span> <span className="text-orange-400">Leads</span></li>
+                <li className="flex justify-between"><span>{t("client_role", "Client")}</span> <span className="text-yellow-400">Analytics</span></li>
               </ul>
+            </GlassCard>
+
+            {/* API Credentials Configuration Form */}
+            <GlassCard className="md:col-span-2 border-[#D4A017]/10 bg-gradient-to-b from-[#0a162e] to-[#050f24]">
+              <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-[#D4A017] animate-pulse" /> {t("api_config", "Configuration API & Identifiants (Overriding .env)")}
+              </h4>
+              <form onSubmit={handleSaveCredentials} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+                      {t("meta_token_label", "Meta Access Token")}
+                    </label>
+                    <input
+                      type="password"
+                      value={inputToken}
+                      onChange={(e) => setInputToken(e.target.value)}
+                      placeholder="EAASa9uSgz2oBR..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+                      {t("fb_page_id_label", "Facebook Page ID")}
+                    </label>
+                    <input
+                      type="text"
+                      value={inputPageId}
+                      onChange={(e) => setInputPageId(e.target.value)}
+                      placeholder="10928301923..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+                      {t("ig_account_id_label", "Instagram Business Account ID")}
+                    </label>
+                    <input
+                      type="text"
+                      value={inputIgId}
+                      onChange={(e) => setInputIgId(e.target.value)}
+                      placeholder="178414028301..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+                      {t("google_sheets_id_label", "Google Sheets ID")}
+                    </label>
+                    <input
+                      type="text"
+                      value={inputSheetId}
+                      onChange={(e) => setInputSheetId(e.target.value)}
+                      placeholder="1Z_S1q9..."
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-white/5 mt-4">
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4A017] to-[#B07B12] hover:opacity-90 transition-all text-xs font-bold text-slate-950 shadow-lg shadow-[#D4A017]/20 flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" /> {t("save", "Enregistrer la configuration")}
+                  </button>
+                </div>
+              </form>
             </GlassCard>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <GlassCard>
               <h4 className="text-sm font-bold text-white mb-3">🔗 Intégrations API</h4>
-              <ul className="space-y-2 text-xs text-gray-300">
-                <li>✓ Meta (Facebook, Instagram)</li>
-                <li>✓ LinkedIn</li>
-                <li>✓ TikTok</li>
-                <li>⚙️ Configuration requise</li>
+              <ul className="space-y-2.5 text-xs text-gray-300">
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Meta (Facebook, Instagram)</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> LinkedIn Professional</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> TikTok Integration</li>
+                <li className="flex items-center gap-2"><Settings className="w-4 h-4 text-amber-400 animate-spin-slow" /> Configuration requise</li>
               </ul>
             </GlassCard>
 
             <GlassCard>
               <h4 className="text-sm font-bold text-white mb-3">🔐 Sécurité</h4>
-              <ul className="space-y-2 text-xs text-gray-300">
-                <li>✓ 2FA: Activé</li>
-                <li>✓ SSL/TLS: Activé</li>
-                <li>✓ Authentification: OAuth</li>
-                <li>🔒 Dernière vérification: 2 jours</li>
+              <ul className="space-y-2.5 text-xs text-gray-300">
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Double Auth (2FA): Activé</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Chiffrement SSL/TLS: Activé</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Authentification: OAuth 2.0</li>
+                <li className="flex items-center gap-2"><Shield className="w-4 h-4 text-[#D4A017]" /> Dernière vérification: 2 jours</li>
               </ul>
             </GlassCard>
 
             <GlassCard>
               <h4 className="text-sm font-bold text-white mb-3">💾 Sauvegarde & Données</h4>
-              <ul className="space-y-2 text-xs text-gray-300">
-                <li>✓ Auto-backup: Quotidien</li>
-                <li>✓ Rétention: 90 jours</li>
-                <li>✓ Export: Disponible</li>
-                <li>🔄 Dernière: il y a 2 h</li>
+              <ul className="space-y-2.5 text-xs text-gray-300">
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Auto-backup: Quotidien</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Rétention: 90 jours</li>
+                <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Export format JSON/CSV</li>
+                <li className="flex items-center gap-2"><Database className="w-4 h-4 text-blue-400" /> Dernière sync: il y a 2 h</li>
               </ul>
             </GlassCard>
           </div>
@@ -1083,12 +2598,12 @@ export default function Home() {
             <h4 className="text-sm font-bold text-white mb-3">ℹ️ À propos</h4>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="text-xs text-gray-300">
-                <p className="text-gray-400">Version</p>
-                <p className="mt-1 font-semibold">Dashboard v2.0 (Frontend Ready)</p>
+                <p className="text-gray-400 flex items-center gap-1.5"><Info className="w-3.5 h-3.5 text-blue-400" /> Version</p>
+                <p className="mt-1 font-semibold pl-5">Dashboard v2.0 (Frontend Ready)</p>
               </div>
               <div className="text-xs text-gray-300">
-                <p className="text-gray-400">Statut</p>
-                <p className="mt-1 font-semibold">Prêt pour connexion DB</p>
+                <p className="text-gray-400 flex items-center gap-1.5"><Database className="w-3.5 h-3.5 text-[#D4A017]" /> Statut</p>
+                <p className="mt-1 font-semibold pl-5">Prêt pour connexion DB</p>
               </div>
             </div>
           </GlassCard>
@@ -1097,12 +2612,28 @@ export default function Home() {
     );
   };
 
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        theme={theme}
+        onLoginSuccess={(user) => setCurrentUser(user)}
+        language={language}
+        setLanguage={setLanguage}
+      />
+    );
+  }
+
   if (showLoading) {
     return <LoadingScreen duration={2.8} onComplete={() => setShowLoading(false)} />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 relative">
+    <div className={clsx(
+      "min-h-screen relative transition-colors duration-300",
+      theme === "dark"
+        ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100"
+        : "bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-900"
+    )}>
       <ParticleBG />
       <div className="mx-auto max-w-[1560px] px-3 py-3 md:px-6 md:py-6">
         <div className="grid gap-4 md:gap-6 lg:grid-cols-[260px_1fr]">
@@ -1110,9 +2641,17 @@ export default function Home() {
           <motion.aside
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#071225]/60 to-[#061633]/60 backdrop-blur-xl lg:flex"
+            className={clsx(
+              "sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col rounded-2xl border backdrop-blur-xl lg:flex transition-all duration-300",
+              theme === "dark"
+                ? "border-white/10 bg-gradient-to-b from-[#071225]/60 to-[#061633]/60"
+                : "border-slate-200 bg-white/70 shadow-sm"
+            )}
           >
-            <div className="border-b border-white/10 p-4">
+            <div className={clsx(
+              "border-b p-4 transition-all duration-300",
+              theme === "dark" ? "border-white/10" : "border-slate-200"
+            )}>
               <a href="/" className="inline-block">
                 <Image
                   src="/logo.png"
@@ -1127,7 +2666,7 @@ export default function Home() {
             </div>
 
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-              {sidebarItems.map((item, i) => {
+              {visibleSidebarItems.map((item, i) => {
                 const Icon = item.icon;
                 const active = activeModule === item.label;
                 return (
@@ -1138,22 +2677,48 @@ export default function Home() {
                     transition={{ delay: i * 0.04 }}
                     onClick={() => setActiveModule(item.label)}
                     className={clsx(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition font-medium",
                       active
-                        ? "bg-gradient-to-r from-[#D4A017]/30 to-[#B07B12]/30 border border-[#D4A017]/30 text-white shadow-lg shadow-[#D4A017]/10"
-                        : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        ? theme === "dark"
+                          ? "bg-gradient-to-r from-[#D4A017]/30 to-[#B07B12]/30 border border-[#D4A017]/30 text-white shadow-lg shadow-[#D4A017]/10"
+                          : "bg-gradient-to-r from-[#D4A017]/20 to-[#B07B12]/20 border border-[#D4A017]/40 text-[#b07b12] shadow-sm shadow-[#D4A017]/5"
+                        : theme === "dark"
+                          ? "text-gray-300 hover:bg-white/5 hover:text-white"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     )}
                   >
                     <Icon className="h-4 w-4" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{t(item.label, item.label)}</span>
                   </motion.button>
                 );
               })}
             </nav>
 
-            <div className="border-t border-white/10 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">Active User</p>
-              <p className="mt-2 text-sm text-white">Admin • Full Access</p>
+            <div className={clsx(
+              "border-t p-3 transition-all duration-300",
+              theme === "dark" ? "border-white/10" : "border-slate-200"
+            )}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">{t("activeuser", "Active User")}</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="truncate">
+                  <p className={clsx("text-sm font-bold leading-tight truncate", theme === "dark" ? "text-white" : "text-slate-800")}>
+                    {currentUser?.name}
+                  </p>
+                  <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
+                    {currentUser?.roleLabel}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("dashboard-auth-user");
+                    setCurrentUser(null);
+                  }}
+                  className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                  title="Se déconnecter"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </motion.aside>
 
@@ -1164,18 +2729,26 @@ export default function Home() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="rounded-2xl border border-white/10 bg-gradient-to-r from-[#071225]/10 to-[#061633]/8 backdrop-blur-xl p-4 md:p-6"
+              className={clsx(
+                "rounded-2xl border backdrop-blur-xl p-4 md:p-6 transition-all duration-300",
+                theme === "dark"
+                  ? "border-white/10 bg-gradient-to-r from-[#071225]/10 to-[#061633]/8 text-white"
+                  : "border-slate-200 bg-white/70 shadow-sm text-slate-800"
+              )}
             >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">Realtime Cockpit</p>
-                  <h2 className="mt-2 text-2xl font-bold md:text-3xl text-white">{activeModule}</h2>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">{t("livesync", "Realtime Cockpit")}</p>
+                  <h2 className={clsx(
+                    "mt-2 text-2xl font-bold md:text-3xl transition-colors duration-300",
+                    theme === "dark" ? "text-white" : "text-slate-800"
+                  )}>{t(activeModule, activeModule)}</h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <motion.span
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ repeat: Infinity, duration: 2 }}
-                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#D4A017]/20 to-[#B07B12]/20 border border-[#D4A017]/30 px-3 py-1 text-xs font-semibold text-[#D4A017]"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#D4A017]/20 to-[#B07B12]/20 border border-[#D4A017]/30 px-3 py-1 text-xs font-semibold text-[#D4A017]"
                   >
                     <span className="h-2 w-2 rounded-full bg-[#D4A017]" />
                     Live sync
@@ -1192,14 +2765,14 @@ export default function Home() {
 
               {/* Mobile Nav */}
               <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
-                {sidebarItems.slice(0, 7).map((item) => (
+                {visibleSidebarItems.slice(0, 7).map((item) => (
                   <GlassBtn
                     key={item.label}
                     variant={activeModule === item.label ? "primary" : "secondary"}
                     size="sm"
                     onClick={() => setActiveModule(item.label)}
                   >
-                    {item.label.slice(0, 8)}
+                    {t(item.label, item.label).slice(0, 8)}
                   </GlassBtn>
                 ))}
               </div>
@@ -1221,7 +2794,12 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="flex items-center gap-2 rounded-lg border border-white/5 bg-white/2 p-3 text-xs text-gray-400"
+              className={clsx(
+                "flex items-center gap-2 rounded-lg border p-3 text-xs transition-all duration-300",
+                theme === "dark"
+                  ? "border-white/5 bg-white/2 text-gray-400"
+                  : "border-slate-200 bg-slate-100/50 text-slate-500"
+              )}
             >
               <Sparkles className="h-4 w-4 text-blue-400" />
               Frontend-only demo • All interactions are UI-based • Ready for API integration
@@ -1229,6 +2807,240 @@ export default function Home() {
           </main>
         </div>
       </div>
+      {isTaskModalOpen && (
+        <div className={clsx(
+          "fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4 transition-all duration-300",
+          theme === "dark" ? "bg-slate-950/80" : "bg-slate-900/40"
+        )}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className={clsx(
+              "w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden border transition-all duration-300",
+              theme === "dark"
+                ? "border-white/10 bg-gradient-to-b from-[#0a162e] to-[#050f24]"
+                : "border-slate-200 bg-white text-slate-800"
+            )}
+          >
+            {/* Background glowing gradient */}
+            {theme === "dark" && (
+              <>
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#D4A017]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+              </>
+            )}
+
+            <div className={clsx(
+              "flex items-center justify-between border-b pb-4 mb-5",
+              theme === "dark" ? "border-white/10" : "border-slate-200"
+            )}>
+              <h3 className={clsx("text-lg font-bold flex items-center gap-2", theme === "dark" ? "text-white" : "text-slate-800")}>
+                <ListTodo className="w-5 h-5 text-[#D4A017]" /> Ajouter une tâche
+              </h3>
+              <button
+                onClick={() => setIsTaskModalOpen(false)}
+                className={clsx(
+                  "rounded-lg p-1.5 transition-colors",
+                  theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-white/5"
+                    : "text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (newTaskTitle.trim()) {
+                try {
+                  const dbStatus = localStatusToDb(newTaskColumn);
+                  const dbPriority = localPriorityToDb(newTaskPriority);
+
+                  const { data: createdTask, error } = await supabase
+                    .from("tasks")
+                    .insert([
+                      {
+                        title: newTaskTitle.trim(),
+                        status: dbStatus,
+                        priority: dbPriority,
+                      }
+                    ])
+                    .select()
+                    .single();
+
+                  if (error) throw error;
+
+                  if (createdTask) {
+                    setTaskColumns(prev => ({
+                      ...prev,
+                      [newTaskColumn]: [...prev[newTaskColumn], createdTask]
+                    }));
+                    setToast({
+                      message: language === "العربية" 
+                        ? "تم إنشاء المهمة بنجاح!" 
+                        : language === "English" 
+                        ? "Task created successfully!" 
+                        : "Tâche créée avec succès !",
+                      type: "success"
+                    });
+                  }
+                  setIsTaskModalOpen(false);
+                  setNewTaskTitle("");
+                } catch (err) {
+                  console.error("Failed to create new task in Supabase:", err);
+                  setToast({
+                    message: language === "العربية" 
+                      ? "فشل في إنشاء المهمة." 
+                      : language === "English" 
+                      ? "Failed to create task." 
+                      : "Erreur lors de la création de la tâche.",
+                    type: "error"
+                  });
+                }
+              }
+            }} className="space-y-4">
+              <div>
+                <label className={clsx(
+                  "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                  theme === "dark" ? "text-gray-400" : "text-slate-500"
+                )}>
+                  Nom de la tâche
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Ex: Rédiger le script du Reel..."
+                  className={clsx(
+                    "w-full rounded-xl px-4 py-2.5 text-sm outline-none border transition-all",
+                    theme === "dark"
+                      ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:border-[#D4A017]/50 focus:bg-white/10"
+                      : "border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:border-[#D4A017] focus:bg-white shadow-sm"
+                  )}
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Statut / Colonne
+                  </label>
+                  <select
+                    value={newTaskColumn}
+                    onChange={(e) => setNewTaskColumn(e.target.value)}
+                    className={clsx(
+                      "w-full rounded-xl px-3 py-2.5 text-sm outline-none border transition-all cursor-pointer",
+                      theme === "dark"
+                        ? "border-white/10 bg-[#0d1e3d] text-white focus:border-[#D4A017]/50"
+                        : "border-slate-200 bg-slate-50 text-slate-800 focus:border-[#D4A017] shadow-sm"
+                    )}
+                  >
+                    <option value="A faire">À faire</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Validation">Validation</option>
+                    <option value="Termine">Terminé</option>
+                    <option value="Retard">Retard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Priorité
+                  </label>
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value)}
+                    className={clsx(
+                      "w-full rounded-xl px-3 py-2.5 text-sm outline-none border transition-all cursor-pointer",
+                      theme === "dark"
+                        ? "border-white/10 bg-[#0d1e3d] text-white focus:border-[#D4A017]/50"
+                        : "border-slate-200 bg-slate-50 text-slate-800 focus:border-[#D4A017] shadow-sm"
+                    )}
+                  >
+                    <option value="Critique">🔴 Critique</option>
+                    <option value="Haute">🟠 Haute</option>
+                    <option value="Normale">🟡 Normale</option>
+                    <option value="Basse">🟢 Basse</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={clsx(
+                "flex items-center justify-end gap-3 pt-4 border-t mt-6",
+                theme === "dark" ? "border-white/10" : "border-slate-200"
+              )}>
+                <button
+                  type="button"
+                  onClick={() => setIsTaskModalOpen(false)}
+                  className={clsx(
+                    "px-4 py-2.5 rounded-xl border transition-all text-xs font-semibold",
+                    theme === "dark"
+                      ? "border-white/10 text-gray-300 hover:text-white hover:bg-white/5"
+                      : "border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4A017] to-[#B07B12] hover:opacity-90 transition-all text-xs font-bold text-slate-950 shadow-lg shadow-[#D4A017]/20"
+                >
+                  Ajouter la tâche
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50">
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className={clsx(
+              "flex items-center gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 max-w-sm",
+              toast.type === "success"
+                ? "border-amber-500/30 bg-[#071225]/90 text-white shadow-amber-500/10"
+                : "border-red-500/30 bg-red-950/90 text-white shadow-red-500/10"
+            )}
+          >
+            <div className={clsx(
+              "flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0",
+              toast.type === "success" ? "bg-amber-500/20 text-[#D4A017]" : "bg-red-500/20 text-red-400"
+            )}>
+              {toast.type === "success" ? (
+                <Sparkles className="h-5 w-5 animate-pulse" />
+              ) : (
+                <AlertTriangle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">
+                {toast.type === "success" ? "Succès" : "Erreur"}
+              </p>
+              <p className="text-xs font-medium leading-normal mt-0.5">
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

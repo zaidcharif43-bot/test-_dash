@@ -7,8 +7,9 @@ export default function ParticleBG() {
 
   useEffect(() => {
     const canvas = canvasRef.current!;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const rawCtx = canvas.getContext("2d");
+    if (!rawCtx) return;
+    const ctx = rawCtx;
 
     let width = 0;
     let height = 0;

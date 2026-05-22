@@ -18,9 +18,8 @@ export function GlassCard({ children, className, hover = true, delay = 0 }: Glas
       transition={{ duration: 0.6, delay, ease: "easeOut" }}
       whileHover={hover ? { y: -4, transition: { duration: 0.3 } } : undefined}
       className={clsx(
-        "rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl",
-        "shadow-2xl shadow-black/20 transition-all duration-300",
-        hover && "hover:border-white/20 hover:bg-white/8 hover:shadow-xl hover:shadow-blue-500/10",
+        "glass-card rounded-2xl p-5 backdrop-blur-xl transition-all duration-300",
+        hover && "hover:border-[#D4A017]/20 hover:shadow-xl hover:shadow-blue-500/5",
         className,
       )}
     >
@@ -35,25 +34,34 @@ interface GlassBtnProps {
   className?: string;
   variant?: "primary" | "secondary" | "subtle";
   loading?: boolean;
+  disabled?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
-export function GlassBtn({ children, onClick, className, variant = "primary", loading = false }: GlassBtnProps) {
+export function GlassBtn({ children, onClick, className, variant = "primary", loading = false, disabled = false, size = "md" }: GlassBtnProps) {
   const variants = {
-    primary: "bg-gradient-to-r from-[#D4A017]/80 to-[#B07B12]/80 hover:from-[#D4A017] hover:to-[#B07B12] text-white",
-    secondary: "border border-[#D4A017]/30 bg-white/3 hover:bg-[#0b1724] text-white",
-    subtle: "text-slate-300 hover:text-white hover:bg-white/5",
+    primary: "glass-btn-primary text-white shadow-lg shadow-[#D4A017]/10",
+    secondary: "glass-btn-secondary",
+    subtle: "glass-btn-subtle",
+  };
+
+  const sizes = {
+    sm: "px-3 py-1.5 text-xs rounded-lg",
+    md: "px-4 py-2 text-sm rounded-xl",
+    lg: "px-5 py-2.5 text-base rounded-2xl",
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={loading || disabled ? undefined : { scale: 1.02 }}
+      whileTap={loading || disabled ? undefined : { scale: 0.98 }}
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       className={clsx(
-        "rounded-xl px-4 py-2 text-sm font-semibold backdrop-blur-md transition-all duration-300 shadow-sm",
+        "font-semibold backdrop-blur-md transition-all duration-300 shadow-sm flex items-center justify-center gap-1.5",
+        sizes[size],
         variants[variant],
-        loading && "opacity-50 cursor-not-allowed",
+        (loading || disabled) && "opacity-50 cursor-not-allowed",
         className,
       )}
     >
@@ -74,11 +82,11 @@ export function ModuleHeader({ title, description, action }: ModuleHeaderProps) 
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
+      className="glass-card mb-6 flex flex-wrap items-center justify-between gap-4 p-5 backdrop-blur-xl"
     >
       <div>
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
-        {description && <p className="mt-1 text-sm text-slate-300">{description}</p>}
+        <h2 className="text-2xl font-bold">{title}</h2>
+        {description && <p className="mt-1 text-sm opacity-80">{description}</p>}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}
     </motion.header>
@@ -91,23 +99,24 @@ interface KPICardProps {
   growth: string;
   icon?: React.ReactNode;
   trend?: "up" | "down";
+  delay?: number;
 }
 
-export function KPICard({ label, value, growth, icon, trend = "up" }: KPICardProps) {
+export function KPICard({ label, value, growth, icon, trend = "up", delay = 0 }: KPICardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.5, delay }}
       whileHover={{ scale: 1.05 }}
-      className="group rounded-2xl border border-white/10 bg-gradient-to-br from-[#071225]/10 to-[#061633]/10 p-5 backdrop-blur-xl hover:border-[#D4A017]/20 hover:shadow-lg"
+      className="kpi-card group rounded-2xl p-5 backdrop-blur-xl hover:border-[#D4A017]/20 hover:shadow-lg transition-all duration-300"
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-xs uppercase tracking-widest text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-bold text-white">{value}</p>
+          <p className="text-xs uppercase tracking-widest opacity-70">{label}</p>
+          <p className="mt-3 text-3xl font-bold">{value}</p>
         </div>
-        {icon && <div className="text-[#D4A017] opacity-50 group-hover:opacity-100 transition-opacity">{icon}</div>}
+        {icon && <div className="text-[#D4A017] opacity-60 group-hover:opacity-100 transition-opacity">{icon}</div>}
       </div>
       <div className="mt-3 flex items-center gap-1">
         <span className={clsx("text-sm font-semibold", trend === "up" ? "text-green-400" : "text-orange-400")}>
