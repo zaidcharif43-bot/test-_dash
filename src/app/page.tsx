@@ -99,7 +99,7 @@ type ModuleKey =
   | "Publications"
   | "Calendrier editorial"
   | "Clients"
-  | "Workflows"
+  | "Add Publication"
   | "Taches"
   | "Equipe"
   | "Messages"
@@ -191,11 +191,10 @@ const sidebarItems: { label: ModuleKey; icon: React.ComponentType<{ className?: 
   { label: "Publications", icon: Megaphone },
   { label: "Calendrier editorial", icon: CalendarDays },
   { label: "Clients", icon: UserRound },
-  { label: "Workflows", icon: WandSparkles },
+  { label: "Add Publication", icon: WandSparkles },
   { label: "Taches", icon: ListTodo },
   { label: "Equipe", icon: Users },
   { label: "Messages", icon: MessageSquare },
-  { label: "Notifications", icon: Bell },
   { label: "Admin", icon: Settings },
   { label: "Parametres", icon: Settings },
 ];
@@ -229,6 +228,7 @@ const translations: Record<string, Record<string, string>> = {
     clients: "Clients",
     leads: "Prospects (Leads)",
     campagnes: "Campagnes",
+    addpublication: "Add Publication",
     workflows: "Workflows",
     taches: "Tâches",
     equipe: "Équipe",
@@ -256,6 +256,7 @@ const translations: Record<string, Record<string, string>> = {
     clients: "Clients",
     leads: "Leads",
     campagnes: "Campaigns",
+    addpublication: "Add Publication",
     workflows: "Workflows",
     taches: "Tasks",
     equipe: "Team",
@@ -283,6 +284,7 @@ const translations: Record<string, Record<string, string>> = {
     clients: "العملاء",
     leads: "العملاء المحتملون",
     campagnes: "الحملات الإعلانية",
+    addpublication: "إضافة منشور",
     workflows: "سير العمل المؤتمت",
     taches: "المهام",
     equipe: "الفريق",
@@ -308,6 +310,8 @@ const translations: Record<string, Record<string, string>> = {
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<LoggedInUser | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [dbReplies, setDbReplies] = useState<any[]>([]);
   const [showLoading, setShowLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<ModuleKey>("Dashboard");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -339,6 +343,15 @@ export default function Home() {
   // No demo posts — data will come from the database later
   const [posts, setPosts] = useState<Post[]>([]);
   const [calendarPosts, setCalendarPosts] = useState<any[]>([]);
+  const [sheetPublications, setSheetPublications] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [newPubService, setNewPubService] = useState("");
+  const [newPubCustomService, setNewPubCustomService] = useState("");
+  const [isCustomService, setIsCustomService] = useState(false);
+  const [newPubDescription, setNewPubDescription] = useState("");
+  const [newPubHashtags, setNewPubHashtags] = useState("");
+  const [newPubStatus, setNewPubStatus] = useState("Pending");
+  const [isSubmittingPub, setIsSubmittingPub] = useState(false);
   const [taskColumns, setTaskColumns] = useState<Record<string, DBTask[]>>({
     "A faire": [],
     "En cours": [],
@@ -353,6 +366,15 @@ export default function Home() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskColumn, setNewTaskColumn] = useState("A faire");
   const [newTaskPriority, setNewTaskPriority] = useState("Normale");
+
+  // Custom Client Creation Modal State
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [newClientCompany, setNewClientCompany] = useState("");
+  const [newClientContact, setNewClientContact] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientIndustry, setNewClientIndustry] = useState("");
+  const [newClientStatus, setNewClientStatus] = useState("Actif");
 
   const [workflows, setWorkflows] = useState(workflowsSeed);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -753,6 +775,385 @@ export default function Home() {
     }
   }, [currentUser]);
 
+  // Fetch clients from Supabase on mount/login (auto-seeding if empty)
+  useEffect(() => {
+    async function fetchClients() {
+      try {
+        const { data: dbClients, error } = await supabase
+          .from("clients")
+          .select("*")
+          .order("id", { ascending: true });
+
+        if (error) throw error;
+
+        // Auto-seed clients if the table is empty
+        if (!dbClients || dbClients.length === 0) {
+          const defaultClients = [
+            { company_name: "IKSATECH Digital", contact_name: "Ahmed Al-Mansoori", email: "ahmed@iksatech.com", status: "active", notes: "Client premium" },
+            { company_name: "FitLife Fitness", contact_name: "Marc Dubois", email: "contact@fitlife.fr", status: "active", notes: "Réseaux sociaux à fort volume" },
+            { company_name: "Zen Hotel & Spa", contact_name: "Sophie Martin", email: "booking@zenhotel.com", status: "active", notes: "Campagnes de branding saisonnières" },
+          ];
+
+          const { data: insertedClients, error: insertError } = await supabase
+            .from("clients")
+            .insert(defaultClients)
+            .select();
+
+          if (insertError) throw insertError;
+          
+          if (insertedClients) {
+            mapAndSetClients(insertedClients, []);
+          }
+        } else {
+          // Fetch campaigns to count them dynamically
+          const { data: dbCampaigns } = await supabase.from("campaigns").select("id, client_id");
+          mapAndSetClients(dbClients, dbCampaigns || []);
+        }
+      } catch (err) {
+        console.error("Error loading clients:", err);
+      }
+    }
+
+    function mapAndSetClients(dbClients: any[], dbCampaigns: any[]) {
+      const mapped = dbClients.map((c) => {
+        const clientCampaigns = dbCampaigns.filter((camp) => camp.client_id === c.id).length;
+        return {
+          id: c.id,
+          company: c.company_name,
+          contact: c.contact_name || "Non assigné",
+          email: c.email || "N/A",
+          networks: "Instagram, Facebook",
+          campaigns: clientCampaigns || Math.floor((c.id % 2) + 1), // Fallback default 1 or 2 campaigns for premium UI
+          status: c.status === "active" || c.status === "Actif" ? "Actif" : "Inactif",
+          notes: c.notes || ""
+        };
+      });
+      setClients(mapped);
+    }
+
+    if (currentUser) {
+      fetchClients();
+    }
+  }, [currentUser]);
+
+  // Fetch notifications from Supabase on mount/login
+  useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        const { data: dbNotifs, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .order("id", { ascending: false });
+
+        if (error) throw error;
+
+        mapAndSetNotifications(dbNotifs || []);
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    }
+
+    function mapAndSetNotifications(dbNotifs: any[]) {
+      const mapped = dbNotifs.map((n) => {
+        let localType: "Push" | "Email" | "WhatsApp" | "Interne" = "Interne";
+        if (n.channel === "email") localType = "Email";
+        else if (n.channel === "whatsapp") localType = "WhatsApp";
+        else if (n.channel === "telegram") localType = "Push";
+        else if (n.channel === "internal") localType = "Interne";
+
+        return {
+          id: n.id,
+          type: localType,
+          text: n.title ? `${n.title}: ${n.body}` : n.body,
+          read: n.is_read,
+          createdAt: n.sent_at ? "Récemment" : "Maintenant"
+        };
+      });
+      setNotifications(mapped);
+    }
+
+    if (currentUser) {
+      fetchNotifications();
+    }
+  }, [currentUser]);
+
+  // Fetch active services from Supabase on mount (auto-seeding if empty)
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        const { data: dbServices, error } = await supabase
+          .from("services")
+          .select("*")
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+
+        if (!dbServices || dbServices.length === 0) {
+          const defaultServices = [
+            { name: "Transformation digital", is_active: true },
+            { name: "Marketing digital", is_active: true },
+            { name: "Conception de Visuels", is_active: true },
+            { name: "Solutions IT", is_active: true },
+            { name: "ERP & Solutions Métier", is_active: true },
+            { name: "Développement Web & Mobile", is_active: true },
+            { name: "Automatisation", is_active: true },
+            { name: "Intelligence IA", is_active: true },
+            { name: "Audit Digital Gratuit", is_active: true },
+            { name: "Pack SCALE - Excellence Opérationnelle", is_active: true },
+          ];
+
+          const { data: inserted, error: insertError } = await supabase
+            .from("services")
+            .insert(defaultServices)
+            .select();
+
+          if (insertError) throw insertError;
+          if (inserted) setServices(inserted);
+        } else {
+          setServices(dbServices);
+        }
+      } catch (err) {
+        console.error("Error fetching services:", err);
+      }
+    }
+
+    if (currentUser) {
+      fetchServices();
+    }
+  }, [currentUser]);
+
+  // Bulletproof Database Notifications Persistence Helper
+  const createNotificationInDb = async (title: string, bodyText: string, type: "Push" | "Email" | "WhatsApp" | "Interne" = "Interne") => {
+    const localFallback = () => {
+      setNotifications((prev) => [
+        {
+          id: Date.now(),
+          type: type,
+          text: title ? `${title}: ${bodyText}` : bodyText,
+          read: false,
+          createdAt: "Maintenant"
+        },
+        ...prev
+      ]);
+    };
+
+    try {
+      let userId: number | null = null;
+      if (currentUser) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", currentUser.username)
+          .maybeSingle();
+        if (userData) userId = userData.id;
+      }
+
+      // Map to PostgreSQL notif_type enum values
+      let dbType = "new_message";
+      const lowerTitle = title.toLowerCase();
+      if (lowerTitle.includes("workflow") || lowerTitle.includes("paramètres") || lowerTitle.includes("config") || lowerTitle.includes("meta")) {
+        dbType = "workflow_executed";
+      } else if (lowerTitle.includes("tâche") || lowerTitle.includes("taches") || lowerTitle.includes("task")) {
+        dbType = "new_message";
+      }
+
+      // Map to PostgreSQL notif_channel enum values
+      let dbChannel = "internal";
+      if (type === "Push") dbChannel = "internal";
+      else if (type === "Email") dbChannel = "email";
+      else if (type === "WhatsApp") dbChannel = "whatsapp";
+
+      const { data: dbNotif, error } = await supabase
+        .from("notifications")
+        .insert([
+          {
+            user_id: userId || 1,
+            title: title,
+            body: bodyText,
+            type: dbType,
+            channel: dbChannel,
+            is_read: false,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.warn("DB Notification enum mismatch, retrying with fallback 'new_message' type...");
+        const { data: fallbackNotif, error: fallbackError } = await supabase
+          .from("notifications")
+          .insert([
+            {
+              user_id: userId || 1,
+              title: title,
+              body: bodyText,
+              type: "new_message",
+              channel: "internal",
+              is_read: false,
+            }
+          ])
+          .select()
+          .single();
+          
+        if (fallbackError) throw fallbackError;
+        
+        if (fallbackNotif) {
+          setNotifications((prev) => [
+            {
+              id: fallbackNotif.id,
+              type: type,
+              text: title ? `${title}: ${bodyText}` : bodyText,
+              read: fallbackNotif.is_read,
+              createdAt: "À l'instant"
+            },
+            ...prev
+          ]);
+        }
+      } else if (dbNotif) {
+        setNotifications((prev) => [
+          {
+            id: dbNotif.id,
+            type: type,
+            text: title ? `${title}: ${bodyText}` : bodyText,
+            read: dbNotif.is_read,
+            createdAt: "À l'instant"
+          },
+          ...prev
+        ]);
+      }
+    } catch (err) {
+      console.error("Supabase Notification Error:", err);
+      localFallback();
+    }
+  };
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientCompany.trim()) return;
+
+    try {
+      const dbStatus = newClientStatus === "Actif" ? "active" : "inactive";
+
+      const { data: createdClient, error } = await supabase
+        .from("clients")
+        .insert([
+          {
+            company_name: newClientCompany.trim(),
+            contact_name: newClientContact.trim() || null,
+            email: newClientEmail.trim() || null,
+            phone: newClientPhone.trim() || null,
+            industry: newClientIndustry.trim() || null,
+            status: dbStatus
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (createdClient) {
+        const mappedClient = {
+          id: createdClient.id,
+          company: createdClient.company_name,
+          contact: createdClient.contact_name || "Non assigné",
+          email: createdClient.email || "N/A",
+          networks: "Instagram, Facebook",
+          campaigns: 1, 
+          status: createdClient.status === "active" || createdClient.status === "Actif" ? "Actif" : "Inactif",
+          notes: createdClient.notes || ""
+        };
+
+        setClients((prev) => [...prev, mappedClient]);
+
+        createNotificationInDb(
+          "Nouveau client",
+          `Le client "${createdClient.company_name}" a été ajouté à votre liste d'affaires`,
+          "Interne"
+        );
+
+        setToast({
+          message: language === "العربية" ? "تم إنشاء العميل بنجاح!" : language === "English" ? "Client created successfully!" : "Client créé avec succès !",
+          type: "success"
+        });
+      }
+
+      setIsClientModalOpen(false);
+      setNewClientCompany("");
+      setNewClientContact("");
+      setNewClientEmail("");
+      setNewClientPhone("");
+      setNewClientIndustry("");
+      setNewClientStatus("Actif");
+    } catch (err) {
+      console.error("Failed to create client in Supabase:", err);
+      setToast({
+        message: language === "العربية" ? "فشل في إنشاء العميل." : language === "English" ? "Failed to create client." : "Échec de la création du client.",
+        type: "error"
+      });
+    }
+  };
+
+  // Load replies from Supabase messages table on mount/login
+  useEffect(() => {
+    async function fetchReplies() {
+      try {
+        const { data, error } = await supabase
+          .from("messages")
+          .select("*")
+          .order("id", { ascending: true });
+        if (error) throw error;
+        if (data) {
+          setDbReplies(data);
+        }
+      } catch (err) {
+        console.error("Error loading messages from Supabase:", err);
+      }
+    }
+    if (currentUser) {
+      fetchReplies();
+    }
+  }, [currentUser]);
+
+  // Merge Supabase replies dynamically into the commentsList of each post
+  const mergedPosts = useMemo(() => {
+    if (!posts || posts.length === 0) return [];
+    
+    return posts.map((post) => {
+      if (!post.commentsList || post.commentsList.length === 0) return post;
+
+      const mergedComments: any[] = [];
+      post.commentsList.forEach((comment) => {
+        mergedComments.push(comment);
+
+        // Find replies from the database for this specific comment
+        const commentReplies = dbReplies.filter(
+          (r) => String(r.external_msg_id) === String(comment.id)
+        );
+
+        commentReplies.forEach((reply) => {
+          const exists = post.commentsList?.some(
+            (mc) => mc.text === reply.body && mc.isReply
+          );
+          if (!exists) {
+            mergedComments.push({
+              id: reply.id,
+              from: reply.sender_name || (currentUser?.name || "Community Manager (Moi)"),
+              text: reply.body,
+              date: new Date(reply.received_at).toISOString().substring(0, 16).replace("T", " "),
+              isReply: true,
+            });
+          }
+        });
+      });
+
+      return {
+        ...post,
+        commentsList: mergedComments,
+        comments: mergedComments.length
+      };
+    });
+  }, [posts, dbReplies]);
+
   // Compute team statistics dynamically based on users and task columns state
   const dynamicTeam = useMemo(() => {
     const allTasks = Object.values(taskColumns).flat();
@@ -816,6 +1217,7 @@ export default function Home() {
         const res = await fetch(url);
         const data = await res.json();
         if (!data.error && Array.isArray(data)) {
+          setSheetPublications(data);
           // Normalize calendar posts
           const normalized = data.map((d: any) => {
              // Parse "dd/mm/yyyy hh:mm:ss" to "yyyy-mm-dd"
@@ -837,6 +1239,7 @@ export default function Home() {
              let statusText = d.Status || "Programme";
              if (statusText.includes("Published")) statusText = "Publie";
              if (statusText.includes("Refused")) statusText = "Rejete";
+             if (statusText.includes("Pending")) statusText = "En attente";
 
              return {
                id: d.draft_id_info || Math.random(),
@@ -873,16 +1276,11 @@ export default function Home() {
       const eventText = events[Math.floor(Math.random() * events.length)];
       const eventType = channels[Math.floor(Math.random() * channels.length)];
 
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          type: eventType,
-          text: eventText,
-          read: false,
-          createdAt: "A l'instant",
-        },
-        ...prev,
-      ].slice(0, 12));
+      createNotificationInDb(
+        eventText,
+        "Alerte système automatique",
+        eventType
+      );
     }, 18000);
 
     return () => window.clearInterval(generator);
@@ -901,7 +1299,7 @@ export default function Home() {
     const revenues = 48.2 * multiplier;
     const leadsCount = Math.round(leads.length * (diffMonths > 0 ? 1 + diffMonths * 0.1 : 1));
     const publicationsCount = posts.length + (diffMonths > 0 ? diffMonths * 8 : 0);
-    const activeClientsCount = clientsSeed.filter((c) => c.status === "Actif").length + (diffMonths > 0 ? Math.floor(diffMonths * 1.5) : 0);
+    const activeClientsCount = clients.filter((c) => c.status === "Actif").length + (diffMonths > 0 ? Math.floor(diffMonths * 1.5) : 0);
 
     return [
       { label: "Publications", value: String(publicationsCount), growth: diffMonths > 0 ? `+${14 + diffMonths * 2}%` : "+14%", icon: "📊" },
@@ -913,28 +1311,241 @@ export default function Home() {
       { label: "Temps réponse", value: "2h 15m", growth: "-30m", icon: "⏱️" },
       { label: "Notif non lues", value: String(unread), growth: "live", icon: "🔔" },
     ];
-  }, [campaignSpent, leads.length, notifications, posts, selectedMonth, selectedYear]);
+  }, [campaignSpent, leads.length, notifications, posts, selectedMonth, selectedYear, clients]);
 
-  const filteredClients = clientsSeed.filter((c) =>
+  const filteredClients = clients.filter((c) =>
     c.company.toLowerCase().includes(clientsFilter.toLowerCase()),
   );
 
   const runWorkflow = (id: number) => {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, runs: wf.runs + 1 } : wf)));
-    setNotifications((prev) => [
-      {
-        id: Date.now(),
-        type: "Interne",
-        text: "Workflow execute avec succes",
-        read: false,
-        createdAt: "Maintenant",
-      },
-      ...prev,
-    ]);
+    createNotificationInDb(
+      "Workflow exécuté",
+      "Le workflow a été exécuté avec succès",
+      "Interne"
+    );
   };
 
   const toggleWorkflow = (id: number) => {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, active: !wf.active } : wf)));
+  };
+
+  const handleCreatePublication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPubDescription.trim()) return;
+
+    const finalService = newPubService.trim();
+    if (!finalService) {
+      setToast({
+        message: language === "العربية" ? "الرجاء كتابة اسم الخدمة" : language === "English" ? "Please enter a service name" : "Veuillez saisir le nom du service",
+        type: "error"
+      });
+      return;
+    }
+
+    setIsSubmittingPub(true);
+
+    try {
+      const draftId = `draft_${Date.now()}`;
+      const rowNum = sheetPublications.length + 2; 
+      
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const publishedAt = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+      const payload = {
+        Service: finalService,
+        Description: newPubDescription.trim(),
+        Hashtags: newPubHashtags.trim(),
+        Status: newPubStatus,
+        PublishedAt: "",
+        row_number: rowNum,
+        draft_id_info: "",
+      };
+
+      const res = await fetch("/api/workflows/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          action: "publish_to_sheet" 
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        setSheetPublications((prev) => [payload, ...prev]);
+
+        const parsedDate = `${year}-${month}-${day}`;
+        const parsedTime = `${hours}:${minutes}`;
+        let statusText = newPubStatus;
+        if (statusText.includes("Published")) statusText = "Publie";
+        if (statusText.includes("Refused")) statusText = "Rejete";
+        if (statusText.includes("Pending")) statusText = "En attente";
+
+        setCalendarPosts((prev) => [
+          {
+            id: draftId,
+            title: finalService,
+            platform: "Omnicanal",
+            date: parsedDate,
+            dateTime: parsedTime,
+            status: statusText
+          },
+          ...prev
+        ]);
+
+        createNotificationInDb(
+          "Publication créée",
+          `La publication pour "${finalService}" a été ajoutée à Google Sheet (Statut: ${newPubStatus})`,
+          "Interne"
+        );
+
+        setToast({
+          message: language === "العربية" ? "تم نشر المنشور في Google Sheet!" : language === "English" ? "Published to Google Sheet!" : "Publié avec succès sur Google Sheet !",
+          type: "success"
+        });
+      } else {
+        throw new Error(result.error || "Failed to trigger sheet publication");
+      }
+
+      setNewPubService("");
+      setNewPubDescription("");
+      setNewPubHashtags("");
+    } catch (err: any) {
+      console.error("Failed to create publication:", err);
+      setToast({
+        message: `Erreur: ${err.message || "Échec de création"}`,
+        type: "error"
+      });
+    } finally {
+      setIsSubmittingPub(false);
+    }
+  };
+
+  const handleUpdateStatus = async (rowNum: number, newStatus: string, currentPub: any) => {
+    // 1. Compute updated fields based on status
+    let updatedDraftId = currentPub.draft_id_info || "";
+    let updatedPublishedAt = currentPub.PublishedAt || "";
+
+    if (newStatus.includes("Pending") || newStatus.includes("⏳")) {
+      updatedDraftId = "";
+      updatedPublishedAt = "";
+    } else if (newStatus.includes("Published") || newStatus.includes("✅")) {
+      // If transitioning to Published and it does not have a timestamp, set one
+      if (!updatedPublishedAt) {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        updatedPublishedAt = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+      }
+    }
+
+    // 2. Optimistically update local states (sheetPublications & calendarPosts)
+    setSheetPublications((prev) =>
+      prev.map((pub) => {
+        const targetRow = pub.row_number || (prev.indexOf(pub) + 2);
+        if (targetRow === rowNum) {
+          return {
+            ...pub,
+            Status: newStatus,
+            draft_id_info: updatedDraftId,
+            PublishedAt: updatedPublishedAt,
+          };
+        }
+        return pub;
+      })
+    );
+
+    // Sync to editorial calendar
+    setCalendarPosts((prev) =>
+      prev.map((post) => {
+        // If there's a draft ID match or title/service match
+        if (
+          (currentPub.draft_id_info && String(post.id) === String(currentPub.draft_id_info)) ||
+          post.title === (currentPub.Service || currentPub.ServiceTitle)
+        ) {
+          let parsedDate = "N/A";
+          let parsedTime = "N/A";
+          if (updatedPublishedAt) {
+            const parts = updatedPublishedAt.trim().split(" ");
+            if (parts[0]) {
+              const [day, month, year] = parts[0].split("/");
+              if (day && month && year) {
+                parsedDate = `${year.trim()}-${month.trim().padStart(2, '0')}-${day.trim().padStart(2, '0')}`;
+              }
+            }
+            if (parts[1]) {
+              parsedTime = parts[1].trim().substring(0, 5);
+            }
+          }
+
+          let statusText = newStatus;
+          if (statusText.includes("Published")) statusText = "Publie";
+          if (statusText.includes("Refused")) statusText = "Rejete";
+          if (statusText.includes("Pending")) statusText = "En attente";
+
+          return {
+            ...post,
+            id: updatedDraftId || post.id,
+            date: parsedDate,
+            dateTime: parsedTime,
+            status: statusText,
+          };
+        }
+        return post;
+      })
+    );
+
+    // 3. Post the update row action to our workflow trigger API
+    try {
+      const res = await fetch("/api/workflows/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Service: currentPub.Service || currentPub.ServiceTitle || "",
+          Description: currentPub.Description || "",
+          Hashtags: currentPub.Hashtags || "",
+          Status: newStatus,
+          PublishedAt: updatedPublishedAt,
+          row_number: rowNum,
+          draft_id_info: updatedDraftId,
+          action: "update_row",
+        }),
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        setToast({
+          message: language === "العربية" ? "تم تحديث حالة الخدمة بنجاح!" : language === "English" ? "Service status updated successfully!" : "Statut du service mis à jour avec succès !",
+          type: "success",
+        });
+
+        createNotificationInDb(
+          "Statut mis à jour",
+          `Le statut de "${currentPub.Service || currentPub.ServiceTitle}" a été mis à jour à "${newStatus}"`,
+          "Interne"
+        );
+      } else {
+        throw new Error(result.error || "Failed to update row");
+      }
+    } catch (err: any) {
+      console.error("Failed to update publication status:", err);
+      setToast({
+        message: `Erreur: ${err.message || "Échec de mise à jour"}`,
+        type: "error",
+      });
+    }
   };
 
   const onTaskDrop = async (toColumn: string) => {
@@ -1073,7 +1684,7 @@ export default function Home() {
             if (commentExists) {
               const newReply = {
                 id: data.id || `reply_${Date.now()}`,
-                from: "Community Manager (Moi)",
+                from: currentUser?.name || "Community Manager (Moi)",
                 text: messageText,
                 date: new Date().toISOString().substring(0, 16).replace("T", " "),
                 isReply: true,
@@ -1087,6 +1698,29 @@ export default function Home() {
             return post;
           });
         });
+
+        // Persist comment reply in Supabase messages table
+        try {
+          const { data: newDbMsg, error: dbMsgErr } = await supabase.from("messages").insert([
+            {
+              platform: platform,
+              body: messageText,
+              sender_name: currentUser?.name || "Community Manager (Moi)",
+              sender_id: currentUser?.username || "admin",
+              is_read: true,
+              external_msg_id: commentId,
+              received_at: new Date().toISOString()
+            }
+          ]).select().single();
+          
+          if (dbMsgErr) throw dbMsgErr;
+          
+          if (newDbMsg) {
+            setDbReplies(prev => [...prev, newDbMsg]);
+          }
+        } catch (dbMsgErr) {
+          console.error("Failed to save message in Supabase:", dbMsgErr);
+        }
 
         setNotifications((prev) => [
           {
@@ -1142,8 +1776,26 @@ export default function Home() {
     );
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      let userId: number | null = null;
+      if (currentUser) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("id")
+          .eq("email", currentUser.username)
+          .maybeSingle();
+        if (userData) userId = userData.id;
+      }
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", userId || 1)
+        .eq("is_read", false);
+    } catch (err) {
+      console.error("Failed to mark notifications as read in Supabase:", err);
+    }
   };
 
   const handleSaveCredentials = (e: React.FormEvent) => {
@@ -1159,16 +1811,11 @@ export default function Home() {
       setMetaIgId(inputIgId.trim());
       setGoogleSheetId(inputSheetId.trim());
 
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          type: "Interne",
-          text: "Identifiants API mis à jour et sauvegardés !",
-          read: false,
-          createdAt: "À l'instant",
-        },
-        ...prev,
-      ]);
+      createNotificationInDb(
+        "Configuration sauvegardée",
+        "Identifiants API mis à jour et sauvegardés !",
+        "Interne"
+      );
     }
   };
 
@@ -1625,12 +2272,28 @@ export default function Home() {
                   <h3 className="text-lg font-bold text-white">Gestion clients</h3>
                   <p className="mt-1 text-sm text-blue-200">Suivi complet — réseaux, campagnes, historique</p>
                 </div>
-                <input
-                  value={clientsFilter}
-                  onChange={(e) => setClientsFilter(e.target.value)}
-                  placeholder="Rechercher client..."
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-gray-400"
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    value={clientsFilter}
+                    onChange={(e) => setClientsFilter(e.target.value)}
+                    placeholder="Rechercher client..."
+                    className={clsx(
+                      "rounded-xl border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-400 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                  <GlassBtn
+                    onClick={() => setIsClientModalOpen(true)}
+                    variant="primary"
+                    size="sm"
+                    className="flex items-center gap-1.5 shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {language === "العربية" ? "عميل جديد" : language === "English" ? "New Client" : "Nouveau client"}
+                  </GlassBtn>
+                </div>
               </div>
             </GlassCard>
 
@@ -1670,35 +2333,240 @@ export default function Home() {
 
 
 
-    if (activeModule === "Workflows") {
+    if (activeModule === "Add Publication") {
       return (
         <PageTransition moduleKey="workflows">
-          <GlassCard>
-            <h3 className="text-lg font-bold text-white">Workflows & Automatisation</h3>
-            <div className="mt-4 space-y-3">
-              {workflows.map((flow, i) => (
-                <motion.div
-                  key={flow.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/8 transition"
-                >
-                  <p className="font-semibold text-white">Trigger: {flow.trigger}</p>
-                  <p className="text-sm text-gray-400">Action: {flow.action}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <GlassBtn variant="secondary" size="sm" onClick={() => toggleWorkflow(flow.id)}>
-                      {flow.active ? "Desactiver" : "Activer"}
-                    </GlassBtn>
-                    <GlassBtn variant="primary" size="sm" onClick={() => runWorkflow(flow.id)}>
-                      Executer
-                    </GlassBtn>
-                    <span className="rounded-lg bg-white/5 px-3 py-1 text-xs text-gray-300">Runs: {flow.runs}</span>
+          <div className="space-y-6">
+            {/* Top row: Add Form (Full Width) */}
+            <div className="grid gap-6 lg:grid-cols-12">
+              {/* Form panel */}
+              <div className="lg:col-span-12">
+                <GlassCard>
+                  <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
+                    <Megaphone className="w-5 h-5 text-[#D4A017]" />
+                    <h3 className={clsx("text-base font-bold", theme === "dark" ? "text-white" : "text-slate-800")}>
+                      {language === "العربية" ? "إضافة منشور إلى Google Sheet" : language === "English" ? "Add Publication to Google Sheet" : "Ajouter une Publication à Google Sheet"}
+                    </h3>
                   </div>
-                </motion.div>
-              ))}
+
+                  <form onSubmit={handleCreatePublication} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={clsx(
+                          "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                          theme === "dark" ? "text-gray-400" : "text-slate-500"
+                        )}>
+                          Service *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newPubService}
+                          onChange={(e) => setNewPubService(e.target.value)}
+                          placeholder={language === "العربية" ? "أدخل اسم الخدمة..." : language === "English" ? "Enter service name..." : "Saisissez le nom du service..."}
+                          className={clsx(
+                            "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                            theme === "dark"
+                              ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                              : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                          )}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={clsx(
+                          "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                          theme === "dark" ? "text-gray-400" : "text-slate-500"
+                        )}>
+                          Statut *
+                        </label>
+                        <select
+                          value={newPubStatus}
+                          onChange={(e) => setNewPubStatus(e.target.value)}
+                          className={clsx(
+                            "w-full rounded-xl border px-3 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50 cursor-pointer",
+                            theme === "dark"
+                              ? "border-white/10 bg-[#071225] text-white focus:bg-[#091730]"
+                              : "border-slate-200 bg-slate-50 text-slate-800 focus:bg-white"
+                          )}
+                        >
+                          <option value="Published">Published ✅</option>
+                          <option value="Refused">Refused ❌</option>
+                          <option value="Pending">Pending</option>
+                        </select>
+                      </div>
+                    </div>
+
+
+
+                    <div>
+                      <label className={clsx(
+                        "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                        theme === "dark" ? "text-gray-400" : "text-slate-500"
+                      )}>
+                        Hashtags
+                      </label>
+                      <input
+                        type="text"
+                        value={newPubHashtags}
+                        onChange={(e) => setNewPubHashtags(e.target.value)}
+                        placeholder="Ex: #Audit #TransformationDigitale #KSATECH"
+                        className={clsx(
+                          "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                            : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                        )}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={clsx(
+                        "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                        theme === "dark" ? "text-gray-400" : "text-slate-500"
+                      )}>
+                        Description *
+                      </label>
+                      <textarea
+                        required
+                        value={newPubDescription}
+                        onChange={(e) => setNewPubDescription(e.target.value)}
+                        placeholder="Saisissez la description de la publication..."
+                        rows={3}
+                        className={clsx(
+                          "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50 resize-none",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                            : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <GlassBtn 
+                        variant="primary" 
+                        size="md" 
+                        loading={isSubmittingPub}
+                        className="px-6 py-2.5 bg-gradient-to-r from-[#D4A017] to-[#B07B12] text-slate-950 font-bold shadow-lg shadow-[#D4A017]/10 flex items-center gap-1.5"
+                      >
+                        <Database className="w-4 h-4 text-slate-950" />
+                        {language === "العربية" ? "نشر في Google Sheet" : language === "English" ? "Publish to Google Sheet" : "Publier sur Google Sheet"}
+                      </GlassBtn>
+                    </div>
+                  </form>
+                </GlassCard>
+              </div>
             </div>
-          </GlassCard>
+
+            {/* Bottom row: Google Sheet Data Table */}
+            <GlassCard>
+              <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h3 className={clsx("text-base font-bold", theme === "dark" ? "text-white" : "text-slate-800")}>
+                      Données Google Sheet (Tab: page of informations)
+                    </h3>
+                    <p className={clsx("text-[10px] mt-0.5", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                      Flux synchronisé en temps réel depuis votre feuille Google Spreadsheet
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className={clsx("text-[10px] font-semibold", theme === "dark" ? "text-gray-300" : "text-slate-600")}>
+                    {sheetPublications.length} lignes chargées
+                  </span>
+                </div>
+              </div>
+
+              {sheetPublications.length === 0 ? (
+                <div className="text-center py-16">
+                  <Database className="w-10 h-10 text-gray-500 mx-auto mb-2 animate-bounce" />
+                  <p className={clsx("text-xs font-semibold", theme === "dark" ? "text-gray-400" : "text-slate-600")}>
+                    Aucune donnée disponible
+                  </p>
+                  <p className={clsx("text-[10px] mt-1", theme === "dark" ? "text-gray-500" : "text-slate-500")}>
+                    Assurez-vous que le sheetId est bien configuré et contient des publications.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/5">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className={clsx(
+                        "border-b border-white/10 font-semibold select-none",
+                        theme === "dark" ? "bg-white/3 text-gray-300" : "bg-slate-50 text-slate-700"
+                      )}>
+                        <th className="p-3 text-center w-12">Ligne</th>
+                        <th className="p-3">Service</th>
+                        <th className="p-3">Description</th>
+                        <th className="p-3">Hashtags</th>
+                        <th className="p-3 text-center">Statut</th>
+                        <th className="p-3">Publié le</th>
+                        <th className="p-3">Draft ID</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {sheetPublications.map((pub, idx) => {
+                        const isRefused = String(pub.Status).includes("Refused") || String(pub.Status).includes("❌");
+                        const isPending = String(pub.Status).includes("Pending") || String(pub.Status).includes("⏳");
+                        const selectValue = isRefused ? "Refused ❌" : isPending ? "Pending ⏳" : "Published ✅";
+                        return (
+                          <tr 
+                            key={pub.draft_id_info || idx} 
+                            className={clsx(
+                              "transition-colors duration-150",
+                              theme === "dark" 
+                                ? "text-gray-300 hover:bg-white/5" 
+                                : "text-slate-700 hover:bg-slate-50"
+                            )}
+                          >
+                            <td className="p-3 text-center font-bold text-gray-500">
+                              {pub.row_number || idx + 2}
+                            </td>
+                            <td className={clsx("p-3 font-semibold", theme === "dark" ? "text-white" : "text-slate-900")}>
+                              {pub.Service || pub.ServiceTitle || "Publication"}
+                            </td>
+                            <td className="p-3 max-w-xs truncate" title={pub.Description || ""}>
+                              {pub.Description || "—"}
+                            </td>
+                            <td className="p-3 text-[#D4A017] italic">
+                              {pub.Hashtags || "—"}
+                            </td>
+                            <td className="p-3 text-center">
+                              <select
+                                value={selectValue}
+                                onChange={(e) => handleUpdateStatus(pub.row_number || idx + 2, e.target.value, pub)}
+                                className={clsx(
+                                  "rounded-xl border px-2.5 py-1 text-[10px] font-bold cursor-pointer transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50 select-none",
+                                  isRefused
+                                    ? "border-red-500/20 bg-red-500/10 text-red-500 focus:bg-red-500/20"
+                                    : isPending
+                                    ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-500 focus:bg-yellow-500/20"
+                                    : "border-emerald-500/20 bg-emerald-500/10 text-emerald-500 focus:bg-emerald-500/20"
+                                )}
+                              >
+                                <option value="Published ✅" className={theme === "dark" ? "bg-[#071225] text-emerald-500 font-bold" : "bg-white text-emerald-500 font-bold"}>Published ✅</option>
+                                <option value="Refused ❌" className={theme === "dark" ? "bg-[#071225] text-red-500 font-bold" : "bg-white text-red-500 font-bold"}>Refused ❌</option>
+                                <option value="Pending ⏳" className={theme === "dark" ? "bg-[#071225] text-yellow-500 font-bold" : "bg-white text-yellow-500 font-bold"}>Pending ⏳</option>
+                              </select>
+                            </td>
+                            <td className="p-3 text-gray-500">
+                              {pub.PublishedAt || "—"}
+                            </td>
+                            <td className="p-3 font-mono text-[10px] text-gray-400">
+                              {pub.draft_id_info || "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </GlassCard>
+          </div>
         </PageTransition>
       );
     }
@@ -1908,7 +2776,7 @@ export default function Home() {
     }
 
     if (activeModule === "Messages") {
-      const filteredPosts = posts.filter((post) => {
+      const filteredPosts = mergedPosts.filter((post) => {
         const matchesPlatform =
           messagesPlatformFilter === "All" ||
           post.platform.toLowerCase() === messagesPlatformFilter.toLowerCase();
@@ -1918,7 +2786,7 @@ export default function Home() {
         return matchesPlatform && matchesSearch;
       });
 
-      const currentSelectedPost = posts.find((p) => String(p.id) === String(selectedPostId)) || filteredPosts[0];
+      const currentSelectedPost = mergedPosts.find((p) => String(p.id) === String(selectedPostId)) || filteredPosts[0];
 
       return (
         <PageTransition moduleKey="messages">
@@ -2144,7 +3012,7 @@ export default function Home() {
                     ) : (
                       currentSelectedPost.commentsList.map((c: any) => {
                         const isSelectedToReply = selectedComment && String(selectedComment.id) === String(c.id);
-                        const isCM = c.from === "Community Manager (Moi)";
+                        const isCM = c.isReply || c.from === "Community Manager (Moi)" || (currentUser && c.from === currentUser.name);
                         const initials = (c.from || "U")
                           .split(" ")
                           .map((n: string) => n[0])
@@ -2167,8 +3035,8 @@ export default function Home() {
                           >
                             {/* Initials Avatar */}
                             {c.isReply || isCM ? (
-                              <div className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0" style={{ backgroundColor: "#D4A017" }}>
-                                CM
+                              <div className="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0 shadow-sm" style={{ backgroundColor: "#D4A017" }}>
+                                {initials}
                               </div>
                             ) : (
                               <div
@@ -2328,28 +3196,6 @@ export default function Home() {
                 </GlassBtn>
               </div>
             </GlassCard>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <GlassCard>
-                <h4 className="text-sm font-bold text-white mb-3">Types de notifications</h4>
-                <ul className="space-y-2.5 text-xs text-gray-300">
-                  <li className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-blue-400" /> Push notifications</li>
-                  <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-amber-400" /> Email</li>
-                  <li className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-green-400" /> WhatsApp</li>
-                  <li className="flex items-center gap-2"><Bell className="w-4 h-4 text-pink-400" /> Notifications internes</li>
-                </ul>
-              </GlassCard>
-
-              <GlassCard>
-                <h4 className="text-sm font-bold text-white mb-3">Notifications automatiques</h4>
-                <ul className="space-y-2.5 text-xs text-gray-300">
-                  <li className="flex items-center gap-2"><Clock className="w-4 h-4 text-red-400" /> Retard tâche détecté</li>
-                  <li className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-[#D4A017]" /> Nouveau message client</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Validation demandée</li>
-                  <li className="flex items-center gap-2"><WandSparkles className="w-4 h-4 text-blue-400" /> Workflow exécuté</li>
-                </ul>
-              </GlassCard>
-            </div>
 
             <GlassCard>
               <h4 className="text-sm font-bold text-white mb-3">Centre d&apos;alertes</h4>
@@ -2996,6 +3842,210 @@ export default function Home() {
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4A017] to-[#B07B12] hover:opacity-90 transition-all text-xs font-bold text-slate-950 shadow-lg shadow-[#D4A017]/20"
                 >
                   Ajouter la tâche
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+      {isClientModalOpen && (
+        <div className={clsx(
+          "fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4 transition-all duration-300",
+          theme === "dark" ? "bg-slate-950/80" : "bg-slate-900/40"
+        )}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className={clsx(
+              "w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden border transition-all duration-300",
+              theme === "dark"
+                ? "border-white/10 bg-gradient-to-b from-[#0a162e] to-[#050f24] text-white"
+                : "border-slate-200 bg-white text-slate-800"
+            )}
+          >
+            {/* Background glowing gradient */}
+            {theme === "dark" && (
+              <>
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#D4A017]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+              </>
+            )}
+
+            <div className={clsx(
+              "flex items-center justify-between border-b pb-4 mb-5",
+              theme === "dark" ? "border-white/10" : "border-slate-200"
+            )}>
+              <h3 className={clsx("text-lg font-bold flex items-center gap-2", theme === "dark" ? "text-white" : "text-slate-800")}>
+                <Users className="w-5 h-5 text-[#D4A017]" /> Ajouter un client
+              </h3>
+              <button
+                onClick={() => setIsClientModalOpen(false)}
+                className={clsx(
+                  "rounded-lg p-1.5 transition-colors",
+                  theme === "dark"
+                    ? "text-gray-400 hover:text-white hover:bg-white/5"
+                    : "text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                )}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="space-y-4">
+              <div>
+                <label className={clsx(
+                  "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                  theme === "dark" ? "text-gray-400" : "text-slate-500"
+                )}>
+                  Nom de l&apos;entreprise *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newClientCompany}
+                  onChange={(e) => setNewClientCompany(e.target.value)}
+                  placeholder="Ex: IKSATECH Digital"
+                  className={clsx(
+                    "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                    theme === "dark"
+                      ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                      : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                  )}
+                />
+              </div>
+
+              <div>
+                <label className={clsx(
+                  "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                  theme === "dark" ? "text-gray-400" : "text-slate-500"
+                )}>
+                  Nom du contact principal
+                </label>
+                <input
+                  type="text"
+                  value={newClientContact}
+                  onChange={(e) => setNewClientContact(e.target.value)}
+                  placeholder="Ex: Sophie Martin"
+                  className={clsx(
+                    "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                    theme === "dark"
+                      ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                      : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Adresse Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newClientEmail}
+                    onChange={(e) => setNewClientEmail(e.target.value)}
+                    placeholder="contact@entreprise.com"
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Téléphone
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    placeholder="+212 600-000000"
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Secteur d&apos;activité
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientIndustry}
+                    onChange={(e) => setNewClientIndustry(e.target.value)}
+                    placeholder="Ex: Hôtellerie, Fitness"
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className={clsx(
+                    "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
+                    theme === "dark" ? "text-gray-400" : "text-slate-500"
+                  )}>
+                    Statut initial
+                  </label>
+                  <select
+                    value={newClientStatus}
+                    onChange={(e) => setNewClientStatus(e.target.value)}
+                    className={clsx(
+                      "w-full rounded-xl border px-3 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50 cursor-pointer",
+                      theme === "dark"
+                        ? "border-white/10 bg-[#071225] text-white focus:bg-[#091730]"
+                        : "border-slate-200 bg-slate-50 text-slate-800 focus:bg-white"
+                    )}
+                  >
+                    <option value="Actif">Actif</option>
+                    <option value="Inactif">Inactif</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className={clsx(
+                "flex items-center justify-end gap-3 pt-4 border-t mt-6",
+                theme === "dark" ? "border-white/10" : "border-slate-200"
+              )}>
+                <button
+                  type="button"
+                  onClick={() => setIsClientModalOpen(false)}
+                  className={clsx(
+                    "px-4 py-2.5 rounded-xl border transition-all text-xs font-semibold",
+                    theme === "dark"
+                      ? "border-white/10 text-gray-300 hover:text-white hover:bg-white/5"
+                      : "border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4A017] to-[#B07B12] hover:opacity-90 transition-all text-xs font-bold text-slate-950 shadow-lg shadow-[#D4A017]/20"
+                >
+                  Ajouter le client
                 </button>
               </div>
             </form>

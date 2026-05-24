@@ -64,7 +64,14 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Meta Comments API] Posting to Graph URL: ${url} (Platform: ${platform})`);
 
-    const metaRes = await fetch(url, {
+    // Build final URL with query params to satisfy Instagram and Facebook requirements
+    const queryParams = new URLSearchParams();
+    queryParams.append("message", message);
+    queryParams.append("access_token", activeToken);
+    
+    const finalUrl = `${url}?${queryParams.toString()}`;
+
+    const metaRes = await fetch(finalUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -87,22 +94,17 @@ export async function POST(req: NextRequest) {
       });
     } else {
       console.warn("[Meta Comments API] Graph API returned error:", metaData.error);
-      // If Graph API fails, fall back to successful simulated reply to keep dashboard working seamlessly
       return NextResponse.json({
-        success: true,
-        isSimulated: true,
+        success: false,
         error: metaData.error?.message || "Erreur Meta Graph API",
-        id: `sim_fallback_${Math.random().toString(36).substring(2, 11)}`,
-        message: "Réponse simulée en repli suite à une erreur Meta API",
+        raw: metaData,
       });
     }
   } catch (error: any) {
     console.error("[Meta Comments API] Error in reply handler:", error);
     return NextResponse.json({
-      success: true,
-      isSimulated: true,
+      success: false,
       error: error.message || "Unknown internal error",
-      id: `sim_err_fallback_${Math.random().toString(36).substring(2, 11)}`,
     });
   }
 }
