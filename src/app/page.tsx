@@ -3336,76 +3336,7 @@ export default function Home() {
               </ul>
             </GlassCard>
 
-            {/* API Credentials Configuration Form */}
-            <GlassCard className="md:col-span-2 border-[#D4A017]/10 bg-gradient-to-b from-[#0a162e] to-[#050f24]">
-              <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-[#D4A017] animate-pulse" /> {t("api_config", "Configuration API & Identifiants (Overriding .env)")}
-              </h4>
-              <form onSubmit={handleSaveCredentials} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      {t("meta_token_label", "Meta Access Token")}
-                    </label>
-                    <input
-                      type="password"
-                      value={inputToken}
-                      onChange={(e) => setInputToken(e.target.value)}
-                      placeholder="EAASa9uSgz2oBR..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      {t("fb_page_id_label", "Facebook Page ID")}
-                    </label>
-                    <input
-                      type="text"
-                      value={inputPageId}
-                      onChange={(e) => setInputPageId(e.target.value)}
-                      placeholder="10928301923..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      {t("ig_account_id_label", "Instagram Business Account ID")}
-                    </label>
-                    <input
-                      type="text"
-                      value={inputIgId}
-                      onChange={(e) => setInputIgId(e.target.value)}
-                      placeholder="178414028301..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      {t("google_sheets_id_label", "Google Sheets ID")}
-                    </label>
-                    <input
-                      type="text"
-                      value={inputSheetId}
-                      onChange={(e) => setInputSheetId(e.target.value)}
-                      placeholder="1Z_S1q9..."
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#D4A017]/50 focus:bg-white/10 transition-all font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-2 border-t border-white/5 mt-4">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4A017] to-[#B07B12] hover:opacity-90 transition-all text-xs font-bold text-slate-950 shadow-lg shadow-[#D4A017]/20 flex items-center gap-1.5"
-                  >
-                    <Check className="w-4 h-4" /> {t("save", "Enregistrer la configuration")}
-                  </button>
-                </div>
-              </form>
-            </GlassCard>
+            
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -3521,7 +3452,13 @@ export default function Home() {
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    onClick={() => setActiveModule(item.label)}
+                    onClick={() => {
+                      if (item.label === "Publications") {
+                        setActiveModule("Add Publication");
+                      } else {
+                        setActiveModule(item.label);
+                      }
+                    }}
                     className={clsx(
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition font-medium",
                       active
@@ -3602,7 +3539,7 @@ export default function Home() {
                   <GlassBtn
                     variant="primary"
                     size="sm"
-                    onClick={() => setActiveModule("Publications")}
+                    onClick={() => setActiveModule("Add Publication")}
                   >
                     + Publication
                   </GlassBtn>
@@ -3616,7 +3553,13 @@ export default function Home() {
                     key={item.label}
                     variant={activeModule === item.label ? "primary" : "secondary"}
                     size="sm"
-                    onClick={() => setActiveModule(item.label)}
+                    onClick={() => {
+                      if (item.label === "Publications") {
+                        setActiveModule("Add Publication");
+                      } else {
+                        setActiveModule(item.label);
+                      }
+                    }}
                   >
                     {t(item.label, item.label).slice(0, 8)}
                   </GlassBtn>
