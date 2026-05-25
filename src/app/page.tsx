@@ -3452,13 +3452,7 @@ export default function Home() {
                     initial={{ opacity: 0, x: -15 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    onClick={() => {
-                      if (item.label === "Publications") {
-                        setActiveModule("Add Publication");
-                      } else {
-                        setActiveModule(item.label);
-                      }
-                    }}
+                    onClick={() => setActiveModule(item.label)}
                     className={clsx(
                       "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition font-medium",
                       active
@@ -3553,13 +3547,7 @@ export default function Home() {
                     key={item.label}
                     variant={activeModule === item.label ? "primary" : "secondary"}
                     size="sm"
-                    onClick={() => {
-                      if (item.label === "Publications") {
-                        setActiveModule("Add Publication");
-                      } else {
-                        setActiveModule(item.label);
-                      }
-                    }}
+                    onClick={() => setActiveModule(item.label)}
                   >
                     {t(item.label, item.label).slice(0, 8)}
                   </GlassBtn>
