@@ -310,13 +310,23 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         <div className={clsx(
           "flex items-center gap-2 rounded-full border px-3 py-1.5 backdrop-blur-md transition-all duration-300",
-          theme === "dark" ? "border-white/10 bg-white/5" : "border-slate-200 bg-white/80 shadow-sm"
+          theme === "dark" ? "border-white/20 bg-white/5" : "border-slate-200 bg-white/80 shadow-sm"
         )}>
           <Globe className={clsx("h-4 w-4", theme === "dark" ? "text-[#D4A017]" : "text-amber-600")} />
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-inherit"
+            className={clsx(
+              "cursor-pointer rounded-full border px-2 py-1 text-xs font-semibold focus:outline-none appearance-none",
+              theme === "dark"
+                ? "border-white/20 bg-slate-900 text-white focus:border-[#D4A017]/40"
+                : "border-slate-300 bg-white text-black focus:border-amber-500/40"
+            )}
+            style={
+              theme === "dark"
+                ? { backgroundColor: "#0f172a", color: "#ffffff" }
+                : { backgroundColor: "#ffffff", color: "#000000", colorScheme: "light" }
+            }
           >
             <option value="Français" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Français</option>
             <option value="English" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>English</option>

@@ -34,6 +34,7 @@ import {
   ArrowRightCircle,
   ArrowDownCircle,
   Check,
+  Menu,
   Smartphone,
   Mail,
   Shield,
@@ -50,6 +51,7 @@ import {
   Search,
   CornerDownRight,
   LogOut,
+  Trash2,
 } from "lucide-react";
 
 const Instagram = ({ className }: { className?: string }) => (
@@ -314,6 +316,7 @@ export default function Home() {
   const [dbReplies, setDbReplies] = useState<any[]>([]);
   const [showLoading, setShowLoading] = useState(true);
   const [activeModule, setActiveModule] = useState<ModuleKey>("Dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [language, setLanguage] = useState("Français");
   const [metaToken, setMetaToken] = useState("");
@@ -386,6 +389,7 @@ export default function Home() {
   const [commentReplyText, setCommentReplyText] = useState("");
   const [isPostingReply, setIsPostingReply] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [teamPasswordDrafts, setTeamPasswordDrafts] = useState<Record<number, string>>({});
 
   const visibleSidebarItems = useMemo(() => {
     if (!currentUser) return [];
@@ -409,6 +413,11 @@ export default function Home() {
       }
     }
   }, [currentUser, activeModule, visibleSidebarItems]);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activeModule, currentUser]);
+
   const [messagesSearchQuery, setMessagesSearchQuery] = useState("");
   const [messagesPlatformFilter, setMessagesPlatformFilter] = useState<"All" | "Facebook" | "Instagram">("All");
   const [campaignBudget, setCampaignBudget] = useState(95000);
@@ -483,8 +492,32 @@ export default function Home() {
     const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
     const baseMetrics = metaInsights.metrics || { totalLikes: 0, totalComments: 0, totalShares: 0, totalReach: 0 };
 
-    if (diffMonths <= 0) {
+    if (diffMonths < 0) {
       return {
+        isForecast: false,
+        facebook: {
+          name: metaInsights.facebook.name,
+          followers: 0,
+          likes: 0,
+        },
+        instagram: {
+          username: metaInsights.instagram.username,
+          followers: 0,
+          posts: 0,
+        },
+        recentPosts: [],
+        metrics: {
+          totalLikes: 0,
+          totalComments: 0,
+          totalShares: 0,
+          totalReach: 0,
+        },
+      };
+    }
+
+    if (diffMonths === 0) {
+      return {
+        isForecast: false,
         ...metaInsights,
         metrics: baseMetrics
       };
@@ -522,6 +555,76 @@ export default function Home() {
     };
   }, [metaInsights, selectedMonth, selectedYear]);
 
+  const isBeforeBaseline = selectedYear < 2026 || (selectedYear === 2026 && selectedMonth < 4);
+
+  const PremiumEmptyState = ({
+    icon: Icon,
+    title,
+    description,
+    note,
+    tone = "amber",
+  }: {
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    description: string;
+    note?: string;
+    tone?: "amber" | "blue" | "pink" | "emerald" | "purple";
+  }) => {
+    const toneStyles = {
+      amber: {
+        shell: theme === "dark"
+          ? "border-[#D4A017]/20 bg-gradient-to-b from-[#D4A017]/10 via-white/5 to-[#061633] text-white shadow-[#D4A017]/5"
+          : "border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 shadow-slate-200/70",
+        iconWrap: theme === "dark" ? "border-[#D4A017]/30 bg-[#D4A017]/15" : "border-amber-200 bg-amber-50",
+        icon: theme === "dark" ? "text-[#D4A017]" : "text-amber-600",
+        chip: theme === "dark" ? "border-white/10 bg-white/5 text-gray-200" : "border-slate-200 bg-white text-slate-700",
+      },
+      blue: {
+        shell: theme === "dark"
+          ? "border-blue-400/20 bg-gradient-to-b from-blue-500/10 via-white/5 to-[#061633] text-white shadow-blue-500/5"
+          : "border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 shadow-slate-200/70",
+        iconWrap: theme === "dark" ? "border-blue-400/20 bg-blue-500/10" : "border-blue-200 bg-blue-50",
+        icon: theme === "dark" ? "text-blue-300" : "text-blue-600",
+        chip: theme === "dark" ? "border-white/10 bg-white/5 text-gray-200" : "border-slate-200 bg-white text-slate-700",
+      },
+      pink: {
+        shell: theme === "dark"
+          ? "border-pink-400/20 bg-gradient-to-b from-pink-500/10 via-white/5 to-[#061633] text-white shadow-pink-500/5"
+          : "border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 shadow-slate-200/70",
+        iconWrap: theme === "dark" ? "border-pink-400/20 bg-pink-500/10" : "border-pink-200 bg-pink-50",
+        icon: theme === "dark" ? "text-pink-300" : "text-pink-600",
+        chip: theme === "dark" ? "border-white/10 bg-white/5 text-gray-200" : "border-slate-200 bg-white text-slate-700",
+      },
+      emerald: {
+        shell: theme === "dark"
+          ? "border-emerald-400/20 bg-gradient-to-b from-emerald-500/10 via-white/5 to-[#061633] text-white shadow-emerald-500/5"
+          : "border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 shadow-slate-200/70",
+        iconWrap: theme === "dark" ? "border-emerald-400/20 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50",
+        icon: theme === "dark" ? "text-emerald-300" : "text-emerald-600",
+        chip: theme === "dark" ? "border-white/10 bg-white/5 text-gray-200" : "border-slate-200 bg-white text-slate-700",
+      },
+      purple: {
+        shell: theme === "dark"
+          ? "border-purple-400/20 bg-gradient-to-b from-purple-500/10 via-white/5 to-[#061633] text-white shadow-purple-500/5"
+          : "border-slate-200 bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 shadow-slate-200/70",
+        iconWrap: theme === "dark" ? "border-purple-400/20 bg-purple-500/10" : "border-purple-200 bg-purple-50",
+        icon: theme === "dark" ? "text-purple-300" : "text-purple-600",
+        chip: theme === "dark" ? "border-white/10 bg-white/5 text-gray-200" : "border-slate-200 bg-white text-slate-700",
+      },
+    }[tone];
+
+    return (
+      <div className={clsx("relative overflow-hidden rounded-2xl border p-6 text-center shadow-lg", toneStyles.shell)}>
+        <div className={clsx("mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border", toneStyles.iconWrap)}>
+          <Icon className={clsx("h-6 w-6", toneStyles.icon)} />
+        </div>
+        <p className="text-base font-bold">{title}</p>
+        <p className={clsx("mt-2 text-sm", theme === "dark" ? "text-gray-300" : "text-slate-600")}>{description}</p>
+        {note && <p className={clsx("mt-3 text-xs", theme === "dark" ? "text-gray-400" : "text-slate-500")}>{note}</p>}
+      </div>
+    );
+  };
+
   // Dynamically compute comparative platform data
   const platformData = useMemo(() => {
     if (!displayInsights) {
@@ -531,6 +634,18 @@ export default function Home() {
         { platform: "LinkedIn", value: 19, color: "#fbbf24" },
       ];
     }
+    const baseYear = 2026;
+    const baseMonth = 4;
+    const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
+
+    if (diffMonths < 0) {
+      return [
+        { platform: "Instagram", value: 0, color: "#ec4899" },
+        { platform: "Facebook", value: 0, color: "#3b82f6" },
+        { platform: "LinkedIn", value: 0, color: "#fbbf24" },
+      ];
+    }
+
     const igFollowers = displayInsights.instagram?.followers ?? 0;
     const fbFollowers = displayInsights.facebook?.followers ?? 0;
     const total = igFollowers + fbFollowers + 1000; // Mock additional offset
@@ -550,6 +665,17 @@ export default function Home() {
     const baseYear = 2026;
     const baseMonth = 4; // May
     const diffMonths = (selectedYear - baseYear) * 12 + (selectedMonth - baseMonth);
+    if (diffMonths < 0) {
+      return [
+        { name: "Lun", engagement: 0, reach: 0 },
+        { name: "Mar", engagement: 0, reach: 0 },
+        { name: "Mer", engagement: 0, reach: 0 },
+        { name: "Jeu", engagement: 0, reach: 0 },
+        { name: "Ven", engagement: 0, reach: 0 },
+        { name: "Sam", engagement: 0, reach: 0 },
+        { name: "Dim", engagement: 0, reach: 0 },
+      ];
+    }
     const multiplier = diffMonths > 0 ? 1 + diffMonths * 0.08 : 1;
 
     const baseData = [
@@ -572,8 +698,8 @@ export default function Home() {
   const renderDateSelector = () => {
     return (
       <div className={clsx(
-        "flex items-center gap-3 border rounded-2xl p-1.5 backdrop-blur-md self-center transition-all duration-300",
-        theme === "dark" ? "bg-white/5 border-white/10" : "bg-black/5 border-slate-200"
+        "flex w-full max-w-full flex-wrap items-center justify-center gap-2 border rounded-2xl p-2 backdrop-blur-md self-center transition-all duration-300 sm:w-auto sm:justify-start",
+        theme === "dark" ? "bg-white/5 border-white/10" : "bg-white border-slate-300 shadow-sm"
       )}>
         <button
           onClick={handlePrevMonth}
@@ -586,15 +712,17 @@ export default function Home() {
           <ChevronLeft className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-1.5 px-1">
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5 px-1 sm:justify-start">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className={clsx(
-              "bg-transparent border-0 font-bold focus:ring-0 cursor-pointer outline-none hover:text-[#D4A017] transition-colors text-sm pr-6",
-              theme === "dark" ? "text-white" : "text-slate-800"
+              "min-w-[120px] border rounded-lg px-2.5 py-1.5 font-bold focus:outline-none focus:ring-1 cursor-pointer transition-colors text-sm pr-7 appearance-none",
+              theme === "dark"
+                ? "bg-slate-900 border-white/10 text-white hover:text-[#D4A017] focus:ring-[#D4A017]/30"
+                : "bg-white border-slate-300 text-black hover:text-black focus:ring-slate-400/30"
             )}
-            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', background: 'none' }}
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           >
             {monthsList.map((m, idx) => (
               <option key={m} value={idx} className={theme === "dark" ? "bg-slate-950 text-white text-sm" : "bg-white text-slate-800 text-sm"}>{m}</option>
@@ -607,10 +735,12 @@ export default function Home() {
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
             className={clsx(
-              "bg-transparent border-0 font-bold focus:ring-0 cursor-pointer outline-none hover:text-[#D4A017] transition-colors text-sm pr-6",
-              theme === "dark" ? "text-white" : "text-slate-800"
+              "min-w-[96px] border rounded-lg px-2.5 py-1.5 font-bold focus:outline-none focus:ring-1 cursor-pointer transition-colors text-sm pr-7 appearance-none",
+              theme === "dark"
+                ? "bg-slate-900 border-white/10 text-white hover:text-[#D4A017] focus:ring-[#D4A017]/30"
+                : "bg-white border-slate-300 text-black hover:text-black focus:ring-slate-400/30"
             )}
-            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', background: 'none' }}
+            style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
           >
             {yearsList.map(y => (
               <option key={y} value={y} className={theme === "dark" ? "bg-slate-950 text-white text-sm" : "bg-white text-slate-800 text-sm"}>{y}</option>
@@ -752,14 +882,14 @@ export default function Home() {
     }
   }, [currentUser]);
 
-  // Fetch team members from Supabase (excluding admins)
+  // Fetch team members from Supabase (all roles, active only)
   useEffect(() => {
     async function fetchTeam() {
       try {
         const { data: dbUsers, error } = await supabase
           .from("users")
           .select("*")
-          .neq("role", "admin");
+          .eq("is_active", true);
 
         if (error) throw error;
         if (dbUsers) {
@@ -1180,6 +1310,7 @@ export default function Home() {
         id: member.id,
         name: member.full_name,
         role: displayRole,
+        accessRole: member.role,
         tasks: totalCount,
         score: score,
         email: member.email,
@@ -1316,6 +1447,122 @@ export default function Home() {
   const filteredClients = clients.filter((c) =>
     c.company.toLowerCase().includes(clientsFilter.toLowerCase()),
   );
+
+  const teamRoleOptions = useMemo(() => {
+    const baseRoles = ["admin", "manager", "designer", "commercial", "client", "community_manager"];
+    const dataRoles = teamMembers.map((member) => String(member.role || "").toLowerCase()).filter(Boolean);
+    return Array.from(new Set([...baseRoles, ...dataRoles]));
+  }, [teamMembers]);
+
+  const labelForRole = (role: string) => {
+    if (role === "community_manager") return "Community Manager";
+    if (role === "designer") return "Designer";
+    if (role === "commercial") return "Commercial";
+    if (role === "client") return "Client";
+    if (role === "manager") return "Manager";
+    if (role === "admin") return "Admin";
+    return role;
+  };
+
+  const updateTeamMemberRole = async (memberId: number, nextRole: string) => {
+    setTeamMembers((prev) =>
+      prev.map((member) => (member.id === memberId ? { ...member, role: nextRole } : member)),
+    );
+
+    try {
+      const { error } = await supabase.from("users").update({ role: nextRole }).eq("id", memberId);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to update team member role:", err);
+      setToast({
+        type: "error",
+        message: language === "العربية" ? "فشل تحديث الدور." : language === "English" ? "Failed to update role." : "Échec de la mise à jour du rôle.",
+      });
+      if (currentUser) {
+        const { data: dbUsers } = await supabase.from("users").select("*");
+        if (dbUsers) setTeamMembers(dbUsers);
+      }
+    }
+  };
+
+  const updateTeamMemberPassword = async (memberId: number) => {
+    const nextPassword = teamPasswordDrafts[memberId]?.trim();
+    if (!nextPassword) return;
+
+    try {
+      const { error } = await supabase.from("users").update({ password: nextPassword }).eq("id", memberId);
+      if (error) throw error;
+
+      setTeamPasswordDrafts((prev) => ({ ...prev, [memberId]: "" }));
+      setToast({
+        type: "success",
+        message: language === "العربية" ? "تم تحديث كلمة المرور." : language === "English" ? "Password updated." : "Mot de passe mis à jour.",
+      });
+    } catch (err) {
+      console.error("Failed to update team member password:", err);
+      setToast({
+        type: "error",
+        message: language === "العربية" ? "فشل تحديث كلمة المرور." : language === "English" ? "Failed to update password." : "Échec de la mise à jour du mot de passe.",
+      });
+    }
+  };
+
+  const deleteTeamMember = async (memberId: number) => {
+    const memberToDelete = teamMembers.find((member) => member.id === memberId);
+    if (!memberToDelete) return;
+
+    const confirmDelete = window.confirm(
+      language === "العربية"
+        ? `هل تريد حذف ${memberToDelete.full_name || memberToDelete.email}؟`
+        : language === "English"
+        ? `Delete ${memberToDelete.full_name || memberToDelete.email}?`
+        : `Supprimer ${memberToDelete.full_name || memberToDelete.email} ?`,
+    );
+    if (!confirmDelete) return;
+
+    setTeamMembers((prev) => prev.filter((member) => member.id !== memberId));
+
+    try {
+      const cleanupOperations = [
+        supabase.from("tasks").update({ assigned_to: null }).eq("assigned_to", memberId),
+        supabase.from("tasks").update({ created_by: null }).eq("created_by", memberId),
+        supabase.from("campaigns").update({ created_by: null }).eq("created_by", memberId),
+        supabase.from("clients").update({ assigned_user_id: null }).eq("assigned_user_id", memberId),
+        supabase.from("leads").update({ assigned_to: null }).eq("assigned_to", memberId),
+        supabase.from("messages").update({ assigned_to: null }).eq("assigned_to", memberId),
+        supabase.from("notifications").update({ user_id: null }).eq("user_id", memberId),
+        supabase.from("posts").update({ approved_by: null }).eq("approved_by", memberId),
+        supabase.from("audit_log").update({ user_id: null }).eq("user_id", memberId),
+      ];
+
+      const cleanupResults = await Promise.all(cleanupOperations);
+      const cleanupError = cleanupResults.find((result) => result.error);
+      if (cleanupError?.error) throw cleanupError.error;
+
+      const { error } = await supabase.from("users").delete().eq("id", memberId);
+      if (error) throw error;
+
+      setToast({
+        type: "success",
+        message: language === "العربية" ? "تم حذف المستخدم نهائياً." : language === "English" ? "User deleted permanently." : "Utilisateur supprimé définitivement.",
+      });
+
+      if (currentUser?.username === memberToDelete.email) {
+        localStorage.removeItem("dashboard-auth-user");
+        setCurrentUser(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete team member:", err);
+      setToast({
+        type: "error",
+        message: language === "العربية" ? "فشل حذف المستخدم نهائياً." : language === "English" ? "Failed to delete user permanently." : "Échec de la suppression définitive du membre.",
+      });
+      if (currentUser) {
+        const { data: dbUsers } = await supabase.from("users").select("*");
+        if (dbUsers) setTeamMembers(dbUsers);
+      }
+    }
+  };
 
   const runWorkflow = (id: number) => {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, runs: wf.runs + 1 } : wf)));
@@ -1826,8 +2073,8 @@ export default function Home() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 bg-[#071225]/40 border border-white/5 rounded-2xl p-4 backdrop-blur-xl">
               <div>
-                <h3 className="text-xl font-bold text-white">Visualisation des Insights</h3>
-                <p className="text-xs text-gray-400 mt-1">Sélectionnez la période pour filtrer vos indicateurs de performance</p>
+                <h3 className={clsx("text-xl font-bold", theme === "dark" ? "text-white" : "text-black")}>Visualisation des Insights</h3>
+                <p className={clsx("text-xs mt-1", theme === "dark" ? "text-gray-400" : "text-slate-600")}>Sélectionnez la période pour filtrer vos indicateurs de performance</p>
               </div>
               {renderDateSelector()}
             </div>
@@ -1841,8 +2088,16 @@ export default function Home() {
                   </span>
                 )}
               </div>
-              {displayInsights ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-4">
+              {isBeforeBaseline ? (
+                <PremiumEmptyState
+                  icon={Sparkles}
+                  tone="amber"
+                  title="Aucune donnée avant mai 2026"
+                  description="Les statistiques restent à zéro jusqu'au mois de base."
+                  note={`Mois sélectionné: ${monthsList[selectedMonth]} ${selectedYear} • Baseline: Mai 2026`}
+                />
+              ) : displayInsights ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 mb-4">
                   <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4 text-center">
                     <p className="text-xs text-blue-300 font-semibold mb-1">Facebook Followers</p>
                     <p className="text-3xl font-bold text-white">{displayInsights.facebook.followers.toLocaleString()}</p>
@@ -1868,44 +2123,81 @@ export default function Home() {
             </GlassCard>
 
             <GlassCard>
-              <h3 className="text-lg font-bold text-white mb-4">{t("metrics_title", "Métriques réseaux sociaux")}</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 mb-4">
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">{t("likes", "Likes")}</p>
-                  <p className="mt-1 text-lg font-bold text-pink-400">
+              <h3 className={clsx("text-lg font-bold mb-4", theme === "dark" ? "text-white" : "text-black")}>{t("metrics_title", "Métriques réseaux sociaux")}</h3>
+              {isBeforeBaseline ? (
+                <PremiumEmptyState
+                  icon={Activity}
+                  tone="blue"
+                  title="Aucune métrique disponible avant mai 2026"
+                  description="Les quatre indicateurs restent à 0 sur les mois antérieurs."
+                  note={`${t("likes", "Likes")}: 0 • ${t("comments", "Commentaires")}: 0 • ${t("shares", "Partages")}: 0 • ${t("reach", "Portée")}: 0`}
+                />
+              ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 mb-4">
+                <div className={clsx(
+                  "rounded-lg border p-3",
+                  theme === "dark"
+                    ? "bg-white/5 border-white/10"
+                    : "bg-blue-500/10 border-blue-500/30"
+                )}>
+                  <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-slate-700")}>{t("likes", "Likes")}</p>
+                  <p className={clsx("mt-1 text-lg font-bold", theme === "dark" ? "text-pink-400" : "text-black")}>
                     {displayInsights?.metrics?.totalLikes?.toLocaleString() ?? "0"}
                   </p>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">{t("comments", "Commentaires")}</p>
-                  <p className="mt-1 text-lg font-bold text-blue-400">
+                <div className={clsx(
+                  "rounded-lg border p-3",
+                  theme === "dark"
+                    ? "bg-white/5 border-white/10"
+                    : "bg-blue-500/10 border-blue-500/30"
+                )}>
+                  <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-slate-700")}>{t("comments", "Commentaires")}</p>
+                  <p className={clsx("mt-1 text-lg font-bold", theme === "dark" ? "text-blue-400" : "text-black")}>
                     {displayInsights?.metrics?.totalComments?.toLocaleString() ?? "0"}
                   </p>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">{t("shares", "Partages")}</p>
-                  <p className="mt-1 text-lg font-bold text-green-400">
+                <div className={clsx(
+                  "rounded-lg border p-3",
+                  theme === "dark"
+                    ? "bg-white/5 border-white/10"
+                    : "bg-pink-500/10 border-pink-500/30"
+                )}>
+                  <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-slate-700")}>{t("shares", "Partages")}</p>
+                  <p className={clsx("mt-1 text-lg font-bold", theme === "dark" ? "text-green-400" : "text-black")}>
                     {displayInsights?.metrics?.totalShares?.toLocaleString() ?? "0"}
                   </p>
                 </div>
-                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-                  <p className="text-xs text-gray-400">{t("reach", "Portée")}</p>
-                  <p className="mt-1 text-lg font-bold text-purple-400">
+                <div className={clsx(
+                  "rounded-lg border p-3",
+                  theme === "dark"
+                    ? "bg-white/5 border-white/10"
+                    : "bg-amber-500/10 border-amber-500/30"
+                )}>
+                  <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-slate-700")}>{t("reach", "Portée")}</p>
+                  <p className={clsx("mt-1 text-lg font-bold", theme === "dark" ? "text-purple-400" : "text-black")}>
                     {displayInsights?.metrics?.totalReach?.toLocaleString() ?? "0"}
                   </p>
                 </div>
               </div>
+              )}
             </GlassCard>
 
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-2">
               <GlassCard>
                 <h3 className="text-lg font-bold text-white">Evolution engagement</h3>
                 <div className="h-64 pt-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={engagementData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" />
-                      <YAxis stroke="rgba(255,255,255,0.5)" />
+                      <XAxis
+                        dataKey="name"
+                        stroke={theme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)"}
+                        tick={{ fill: theme === "dark" ? "#ffffff" : "#000000" }}
+                      />
+                      <YAxis
+                        stroke={theme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)"}
+                        tick={{ fill: theme === "dark" ? "#ffffff" : "#000000" }}
+                      />
                       <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
                       <Line type="monotone" dataKey="engagement" stroke="#60a5fa" strokeWidth={2} dot={false} />
                       <Line type="monotone" dataKey="reach" stroke="#4ade80" strokeWidth={2} dot={false} />
@@ -1920,8 +2212,15 @@ export default function Home() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={platformData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="platform" stroke="rgba(255,255,255,0.5)" />
-                      <YAxis stroke="rgba(255,255,255,0.5)" />
+                      <XAxis
+                        dataKey="platform"
+                        stroke={theme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)"}
+                        tick={{ fill: theme === "dark" ? "#ffffff" : "#000000" }}
+                      />
+                      <YAxis
+                        stroke={theme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)"}
+                        tick={{ fill: theme === "dark" ? "#ffffff" : "#000000" }}
+                      />
                       <Tooltip contentStyle={{ backgroundColor: "rgba(10,10,30,0.9)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px" }} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                         {platformData.map((item) => (
@@ -2113,7 +2412,7 @@ export default function Home() {
                             {/* Rich metrics details */}
                             <div className="border-t border-white/5 pt-3 mt-3">
                               {isFB ? (
-                                <div className="grid grid-cols-4 gap-2 text-center">
+                                <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                                   <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
                                     <p className="text-[9px] text-gray-400 uppercase font-semibold">Vues</p>
                                     <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><Eye className="w-3 h-3 text-blue-400" /> {post.views ?? 0}</p>
@@ -2132,7 +2431,7 @@ export default function Home() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-3">
                                   <div className="bg-white/5 rounded-lg p-1.5 border border-white/5">
                                     <p className="text-[9px] text-gray-400 uppercase font-semibold">Likes</p>
                                     <p className="text-xs font-bold text-white mt-0.5 flex items-center justify-center gap-1"><Heart className="w-3 h-3 text-pink-500" /> {post.likes ?? 0}</p>
@@ -2179,7 +2478,7 @@ export default function Home() {
             </div>
 
             {/* Calendar Days Header */}
-            <div className="grid grid-cols-7 gap-2 mb-3 text-center text-xs font-semibold text-[#D4A017] uppercase tracking-wider">
+            <div className="grid grid-cols-7 gap-1.5 mb-3 text-center text-[10px] font-semibold text-[#D4A017] uppercase tracking-wider sm:text-xs">
               <div>Lun</div>
               <div>Mar</div>
               <div>Mer</div>
@@ -2190,7 +2489,7 @@ export default function Home() {
             </div>
 
             {/* Calendar dynamic weekly grid */}
-            <div className="grid grid-cols-7 gap-2 custom-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto pb-4">
+            <div className="grid grid-cols-7 gap-2 custom-scrollbar max-h-[calc(100vh-290px)] overflow-y-auto overflow-x-hidden pb-4">
               {calendarCells.map((cell, idx) => {
                 if (!cell.dayNum) {
                   return (
@@ -2300,10 +2599,13 @@ export default function Home() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {filteredClients.length === 0 ? (
                 <GlassCard className="md:col-span-2 xl:col-span-3">
-                  <div className="text-center py-12">
-                    <p className="text-gray-400">Aucun client</p>
-                    <p className="text-xs text-gray-500 mt-1">Connectez la base de données pour charger les clients</p>
-                  </div>
+                  <PremiumEmptyState
+                    icon={Users}
+                    tone="emerald"
+                    title="Aucun client"
+                    description="Connectez la base de données pour charger les clients."
+                    note="La liste apparaîtra ici dès la synchronisation."
+                  />
                 </GlassCard>
               ) : (
                 filteredClients.map((client, i) => (
@@ -2481,15 +2783,13 @@ export default function Home() {
               </div>
 
               {sheetPublications.length === 0 ? (
-                <div className="text-center py-16">
-                  <Database className="w-10 h-10 text-gray-500 mx-auto mb-2 animate-bounce" />
-                  <p className={clsx("text-xs font-semibold", theme === "dark" ? "text-gray-400" : "text-slate-600")}>
-                    Aucune donnée disponible
-                  </p>
-                  <p className={clsx("text-[10px] mt-1", theme === "dark" ? "text-gray-500" : "text-slate-500")}>
-                    Assurez-vous que le sheetId est bien configuré et contient des publications.
-                  </p>
-                </div>
+                <PremiumEmptyState
+                  icon={Database}
+                  tone="amber"
+                  title="Aucune donnée disponible"
+                  description="Assurez-vous que le sheetId est bien configuré et contient des publications."
+                  note="Les lignes Google Sheet s'afficheront ici automatiquement."
+                />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-white/5">
                   <table className="w-full text-left border-collapse text-xs">
@@ -2612,10 +2912,13 @@ export default function Home() {
                     )}>{column}</p>
                     <div className="space-y-2">
                       {tasks.length === 0 ? (
-                        <div className="text-center py-12">
-                          <p className="text-xs text-gray-400">Aucune tâche</p>
-                          <p className="text-[10px] text-gray-500 mt-1">Glissez une tâche ici</p>
-                        </div>
+                        <PremiumEmptyState
+                          icon={ListTodo}
+                          tone="purple"
+                          title="Aucune tâche"
+                          description="Glissez une tâche ici"
+                          note="Créez ou déplacez une carte pour commencer."
+                        />
                       ) : (
                         tasks.map((task) => (
                           <motion.div
@@ -2724,22 +3027,17 @@ export default function Home() {
             </h3>
             <div className="mt-4 space-y-3">
               {dynamicTeam.length === 0 ? (
-                <div className={clsx(
-                  "text-center py-12 px-4 border border-dashed rounded-xl transition duration-300",
-                  theme === "dark" ? "border-white/10 bg-white/5" : "border-slate-200 bg-black/5"
-                )}>
-                  <Users className="w-10 h-10 text-[#D4A017] mx-auto mb-3 animate-pulse" />
-                  <p className={clsx("text-sm font-semibold", theme === "dark" ? "text-white" : "text-slate-800")}>
-                    {language === "العربية" ? "لا يوجد أعضاء في الفريق حالياً" : language === "English" ? "No team members found" : "Aucun membre de l'équipe"}
-                  </p>
-                  <p className={clsx("text-xs mt-1.5 max-w-md mx-auto", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
-                    {language === "العربية" 
-                      ? "قم بتسجيل حساب جديد بدور (Community Manager, Manager, Designer...) عبر بوابة التسجيل للظهور هنا."
-                      : language === "English"
-                      ? "Register new accounts with team roles (Community Manager, Manager, Designer...) via the portal to see them here."
-                      : "Enregistrez de nouveaux comptes avec des rôles d'équipe (Community Manager, Manager, Designer...) via le portail d'inscription pour les afficher ici."}
-                  </p>
-                </div>
+                <PremiumEmptyState
+                  icon={Users}
+                  tone="blue"
+                  title={language === "العربية" ? "لا يوجد أعضاء في الفريق حالياً" : language === "English" ? "No team members found" : "Aucun membre de l'équipe"}
+                  description={language === "العربية"
+                    ? "قم بتسجيل حساب جديد بدور (Community Manager, Manager, Designer...) عبر بوابة التسجيل للظهور هنا."
+                    : language === "English"
+                    ? "Register new accounts with team roles (Community Manager, Manager, Designer...) via the portal to see them here."
+                    : "Enregistrez de nouveaux comptes avec des rôles d'équipe (Community Manager, Manager, Designer...) via le portail d'inscription pour les afficher ici."}
+                  note="Synchronisation en temps réel avec la base utilisateur."
+                />
               ) : (
                 dynamicTeam.map((member, i) => (
                   <motion.div
@@ -2748,23 +3046,92 @@ export default function Home() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.08 }}
                     className={clsx(
-                      "flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition duration-300",
+                      "flex flex-col gap-4 rounded-2xl border p-4 transition duration-300 md:flex-row md:items-center md:justify-between",
                       theme === "dark"
                         ? "border-white/10 bg-white/5 hover:bg-white/8 text-white"
                         : "border-slate-200 bg-black/5 hover:bg-black/10 text-slate-800 shadow-sm"
                     )}
                   >
-                    <div>
-                      <p className="font-semibold">{member.name}</p>
-                      <p className={clsx("text-sm mt-0.5", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{member.name}</p>
+                      <p className={clsx("text-sm mt-0.5 truncate", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
                         {member.role} • {member.tasks} {member.tasks > 1 ? "tâches" : "tâche"} • {member.email}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={clsx("text-xs font-mono opacity-65", theme === "dark" ? "text-gray-400" : "text-slate-500")}>Performance</span>
-                      <div className="rounded-lg bg-gradient-to-r from-orange-500/20 to-red-500/20 px-3 py-1 text-xs font-bold text-orange-300 border border-orange-500/20 shadow-md">
-                        {member.score}%
+
+                    <div className="flex flex-col gap-3 md:w-[360px]">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                        <select
+                          value={member.accessRole || "client"}
+                          onChange={(e) => updateTeamMemberRole(member.id, e.target.value)}
+                          className={clsx(
+                            "w-full rounded-xl border px-3 py-2 text-xs font-semibold outline-none transition-all",
+                            theme === "dark"
+                              ? "border-white/10 bg-[#0b162b] text-white focus:border-[#D4A017]/40"
+                              : "border-slate-300 bg-white text-slate-900 focus:border-[#D4A017]/50"
+                          )}
+                        >
+                          {teamRoleOptions.map((role) => (
+                            <option key={role} value={role}>
+                              {labelForRole(role)}
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteTeamMember(member.id)}
+                          className={clsx(
+                            "inline-flex items-center justify-center rounded-xl border px-3 py-2 text-xs font-semibold transition-all",
+                            theme === "dark"
+                              ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
+                              : "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          )}
+                          title={language === "العربية" ? "حذف" : language === "English" ? "Delete" : "Supprimer"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
+
+                      {currentUser?.role === "admin" && (
+                        <div className={clsx(
+                          "rounded-xl border p-3",
+                          theme === "dark" ? "border-[#D4A017]/20 bg-[#D4A017]/10" : "border-amber-200 bg-amber-50"
+                        )}>
+                          <div className="mb-2 flex items-center gap-2">
+                            <KeyRound className={clsx("h-4 w-4", theme === "dark" ? "text-[#D4A017]" : "text-amber-600")} />
+                            <p className={clsx("text-[11px] font-semibold uppercase tracking-wider", theme === "dark" ? "text-gray-200" : "text-slate-700")}>
+                              Admin password control
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                            <input
+                              type="password"
+                              value={teamPasswordDrafts[member.id] || ""}
+                              onChange={(e) => setTeamPasswordDrafts((prev) => ({ ...prev, [member.id]: e.target.value }))}
+                              placeholder={language === "العربية" ? "كلمة مرور جديدة" : language === "English" ? "New password" : "Nouveau mot de passe"}
+                              className={clsx(
+                                "w-full rounded-xl border px-3 py-2 text-xs outline-none transition-all",
+                                theme === "dark"
+                                  ? "border-white/10 bg-[#0b162b] text-white placeholder-gray-500 focus:border-[#D4A017]/40"
+                                  : "border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-[#D4A017]/50"
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateTeamMemberPassword(member.id)}
+                              className={clsx(
+                                "inline-flex items-center justify-center rounded-xl border px-3 py-2 text-xs font-semibold transition-all",
+                                theme === "dark"
+                                  ? "border-[#D4A017]/30 bg-[#D4A017]/15 text-[#D4A017] hover:bg-[#D4A017]/20"
+                                  : "border-amber-200 bg-amber-100 text-amber-700 hover:bg-amber-200"
+                              )}
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))
@@ -2859,11 +3226,13 @@ export default function Home() {
               {/* Scrollable list */}
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 {filteredPosts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
-                      Aucune publication trouvée
-                    </p>
-                  </div>
+                  <PremiumEmptyState
+                    icon={Megaphone}
+                    tone="pink"
+                    title="Aucune publication trouvée"
+                    description="Change de filtre ou ajoute une nouvelle publication pour remplir cette vue."
+                    note="Le flux des publications s'affichera ici dès qu'il sera synchronisé."
+                  />
                 ) : (
                   filteredPosts.map((post, i) => {
                     const isSelected = currentSelectedPost && String(post.id) === String(currentSelectedPost.id);
@@ -3000,15 +3369,13 @@ export default function Home() {
                   {/* Comments Thread List */}
                   <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-4 custom-scrollbar">
                     {(!currentSelectedPost.commentsList || currentSelectedPost.commentsList.length === 0) ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center py-16">
-                        <MessageCircle className="w-10 h-10 text-gray-500 mb-2" />
-                        <p className={clsx("text-sm font-semibold", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
-                          Aucun commentaire sur cette publication
-                        </p>
-                        <p className={clsx("text-xs mt-0.5 max-w-xs", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
-                          Les nouveaux commentaires s&apos;afficheront automatiquement dès leur réception.
-                        </p>
-                      </div>
+                      <PremiumEmptyState
+                        icon={MessageCircle}
+                        tone="purple"
+                        title="Aucun commentaire sur cette publication"
+                        description="Les nouveaux commentaires s'afficheront automatiquement dès leur réception."
+                        note="Le suivi conversationnel est prêt à se remplir en direct."
+                      />
                     ) : (
                       currentSelectedPost.commentsList.map((c: any) => {
                         const isSelectedToReply = selectedComment && String(selectedComment.id) === String(c.id);
@@ -3201,10 +3568,13 @@ export default function Home() {
               <h4 className="text-sm font-bold text-white mb-3">Centre d&apos;alertes</h4>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">Aucune notification</p>
-                    <p className="text-xs text-gray-500 mt-1">Vous êtes à jour</p>
-                  </div>
+                  <PremiumEmptyState
+                    icon={Bell}
+                    tone="amber"
+                    title="Aucune notification"
+                    description="Vous êtes à jour."
+                    note="Les nouvelles alertes apparaîtront ici dès qu'elles arriveront."
+                  />
                 ) : (
                   notifications.map((item) => (
                     <motion.div
@@ -3406,20 +3776,20 @@ export default function Home() {
 
   return (
     <div className={clsx(
-      "min-h-screen relative transition-colors duration-300",
+      "min-h-screen relative overflow-x-hidden transition-colors duration-300",
       theme === "dark"
         ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100"
         : "bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-900"
     )}>
       <ParticleBG />
-      <div className="mx-auto max-w-[1560px] px-3 py-3 md:px-6 md:py-6">
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-[260px_1fr]">
+      <div className="mx-auto max-w-[1560px] overflow-x-hidden px-3 py-3 md:px-6 md:py-6">
+        <div className="grid min-w-0 gap-4 md:gap-6 lg:grid-cols-[260px_1fr]">
           {/* Sidebar */}
           <motion.aside
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className={clsx(
-              "sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col rounded-2xl border backdrop-blur-xl lg:flex transition-all duration-300",
+              "sticky top-3 hidden h-[calc(100vh-1.5rem)] min-w-0 flex-col rounded-2xl border backdrop-blur-xl lg:flex transition-all duration-300",
               theme === "dark"
                 ? "border-white/10 bg-gradient-to-b from-[#071225]/60 to-[#061633]/60"
                 : "border-slate-200 bg-white/70 shadow-sm"
@@ -3500,7 +3870,7 @@ export default function Home() {
           </motion.aside>
 
           {/* Main Content */}
-          <main className="flex flex-col gap-4 md:gap-6">
+          <main className="flex min-w-0 flex-col gap-4 md:gap-6">
             {/* Header */}
             <motion.header
               initial={{ opacity: 0, y: -20 }}
@@ -3513,15 +3883,29 @@ export default function Home() {
                   : "border-slate-200 bg-white/70 shadow-sm text-slate-800"
               )}
             >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-[#D4A017]">{t("livesync", "Realtime Cockpit")}</p>
                   <h2 className={clsx(
                     "mt-2 text-2xl font-bold md:text-3xl transition-colors duration-300",
                     theme === "dark" ? "text-white" : "text-slate-800"
                   )}>{t(activeModule, activeModule)}</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                  <motion.button
+                    type="button"
+                    onClick={() => setIsSidebarOpen(true)}
+                    className={clsx(
+                      "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all lg:hidden",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-300 bg-white text-black hover:bg-slate-50"
+                    )}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Menu className="h-4 w-4" />
+                    Menu
+                  </motion.button>
                   <motion.span
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ repeat: Infinity, duration: 2 }}
@@ -3584,6 +3968,89 @@ export default function Home() {
           </main>
         </div>
       </div>
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            onClick={() => setIsSidebarOpen(false)}
+            className={clsx(
+              "absolute inset-0 w-full h-full backdrop-blur-sm transition-all duration-300",
+              theme === "dark" ? "bg-slate-950/70" : "bg-slate-900/40"
+            )}
+          />
+          <motion.aside
+            initial={{ x: -320 }}
+            animate={{ x: 0 }}
+            exit={{ x: -320 }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+            className={clsx(
+              "absolute left-0 top-0 h-full w-[86vw] max-w-sm overflow-y-auto border-r p-4 shadow-2xl",
+              theme === "dark"
+                ? "border-white/10 bg-slate-950 text-slate-100"
+                : "border-slate-200 bg-white text-slate-900"
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Image
+                  src="/logo.png"
+                  alt="Site logo"
+                  width={120}
+                  height={40}
+                  className="h-10 w-auto"
+                  style={{ objectFit: "contain" }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#D4A017]">Navigation</p>
+                  <p className={clsx("text-xs truncate", theme === "dark" ? "text-gray-400" : "text-slate-500")}>{currentUser?.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className={clsx(
+                  "rounded-lg p-2 transition-colors",
+                  theme === "dark" ? "text-gray-300 hover:bg-white/5 hover:text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="mt-4 space-y-2">
+              {visibleSidebarItems.map((item) => {
+                const Icon = item.icon;
+                const active = activeModule === item.label;
+                return (
+                  <motion.button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      setActiveModule(item.label);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={clsx(
+                      "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                      active
+                        ? theme === "dark"
+                          ? "border border-[#D4A017]/30 bg-[#D4A017]/15 text-white"
+                          : "border border-[#D4A017]/40 bg-[#D4A017]/10 text-black"
+                        : theme === "dark"
+                          ? "bg-white/5 text-gray-200 hover:bg-white/10 hover:text-white"
+                          : "bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{t(item.label, item.label)}</span>
+                  </motion.button>
+                );
+              })}
+            </nav>
+          </motion.aside>
+        </div>
+      )}
       {isTaskModalOpen && (
         <div className={clsx(
           "fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4 transition-all duration-300",

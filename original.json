@@ -1,0 +1,1998 @@
+{
+  "name": "original",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1,3,5"
+            }
+          ]
+        }
+      },
+      "id": "6d102312-af07-4d0e-aafa-1fa0cb964665",
+      "name": "⏰ Schedule - Mon/Wed/Fri 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        2256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  file: 'https://res.cloudinary.com/dmnkmwdmu/image/upload/v1778881129/iksa_j1hfyg.png',\n  upload_preset: 'ml_default',\n  public_id: 'iksatech/brand/logo'\n}) }}",
+        "options": {}
+      },
+      "id": "12acd604-4312-41c4-9704-0322292a7dbf",
+      "name": "☁️ Ensure Logo in Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        576,
+        2256
+      ],
+      "notes": "Uploads iksa.png once to iksatech/brand/logo. overwrite:false means it skips if already exists. Safe to run every time."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the logo URL from Cloudinary upload response\n// If the logo already existed (overwrite:false), Cloudinary still returns the existing secure_url\nconst res = $input.first().json;\nconst logoUrl = res.secure_url || 'https://res.cloudinary.com/dmnkmwdmu/image/upload/iksatech/brand/logo.png';\nconsole.log('Logo URL confirmed:', logoUrl);\nreturn [{ json: { logo_url: logoUrl } }];"
+      },
+      "id": "3237cf49-9cbb-492d-a862-14ef722f262d",
+      "name": "⚙️ Extract Logo URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        2256
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "page of informations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "9e1084ba-144f-4d48-bfaa-5196efff54bf",
+      "name": "📋 Read First Pending Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        976,
+        2048
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json['Status'] }}",
+              "rightValue": "Pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "3b131aa5-623f-4b0f-9f2f-77cd0001b02f",
+      "name": "🔍 Is Row Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{OPENROUTER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://iksatech.com"
+            },
+            {
+              "name": "X-Title",
+              "value": "IKSATECH Social Media Bot"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model: \"openai/gpt-oss-120b:free\",max_tokens: 1800,messages: [{role: \"system\",content: \"You are a premium social media director for IKSATECH, a digital agency in Tanger, Morocco. You craft ultra-professional French posts and generate world-class image prompts for a corporate cybersecurity and tech brand. Brand identity: dark navy, neon blue, metallic gold. Visual style: cinematic, hyper-realistic, luxury. Return ONLY valid JSON. No explanation. No markdown.\"},{role: \"user\",content: \"Generate premium social media content for IKSATECH.\\n\\nService: \" + $json[\"Service\"].replace(/\\n|\\r/g, \" \").trim() + \"\\nDescription: \" + $json[\"Description\"].replace(/\\n|\\r/g, \" \").trim() + \"\\nHashtags: \" + $json[\"Hashtags\"].replace(/\\n|\\r/g, \" \").trim() + \"\\n\\nRULES:\\n- linkedin: authoritative tone, max 3 hashtags, mention IKSATECH, end with Contactez-nous sur iksatech.com\\n- instagram: energetic, ALL hashtags, no emojis, conversational, end with a question\\n\\nIMAGE PROMPT RULES — ULTRA PREMIUM CYBERSECURITY CORPORATE STYLE:\\nFor image_prompt_linkedin:\\n  Base style: hyper-realistic cinematic corporate scene, dramatic studio lighting, deep navy and electric blue color palette, photorealistic 8K detail, award-winning commercial photography, sharp focus, no text no letters no watermark, centered composition with clean lower third area for overlay card\\n  If service contains Cybersécurité or Security: glowing holographic security shield centered, hexagonal data protection grid in electric blue, luminous padlock floating above dark reflective surface, volumetric neon blue light rays, futuristic server room background\\n  If service contains Intelligence Artificielle or IA: luminous holographic neural brain network, glowing blue synaptic connections in dark space, quantum data streams, futuristic AI visualization\\n  If service contains Cloud or Solutions IT: floating futuristic server architecture, interconnected cloud nodes with neon blue streams, holographic data center\\n  If service contains Développement Web or Mobile: holographic multi-screen interface array, abstract glowing code matrix, futuristic developer workspace\\n  If service contains Automatisation or RPA: precision robotic mechanical arms with glowing circuit joints, automated workflow streams in neon blue\\n  If service contains Marketing or SEO: glowing data analytics dashboard hologram, rising graph trajectories in electric blue and gold\\n  If service contains ERP or Odoo: interconnected business process nodes, holographic enterprise system diagram\\n  Default: dramatic futuristic digital cityscape at night, neon blue corporate branding elements, premium technology atmosphere\\nFor image_prompt_instagram:\\n  Same service-aware visual as linkedin but: vibrant neon color palette with gold and cyan accents, portrait composition, explosive dramatic lighting, more artistic and bold, no text no watermark\\n\\nReturn ONLY this JSON:\\n{\\\"linkedin\\\": \\\"...\\\", \\\"instagram\\\": \\\"...\\\", \\\"image_prompt_linkedin\\\": \\\"...\\\", \\\"image_prompt_instagram\\\": \\\"...\\\"}\"}]}) }}",
+        "options": {}
+      },
+      "id": "03e79308-9f0c-4165-8a4d-983e0bffab0e",
+      "name": "🤖 OpenRouter - Generate Posts + Image Prompts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $input.first().json.choices[0].message.content;\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nlet posts;\ntry {\n  posts = JSON.parse(cleaned);\n} catch(e) {\n  throw new Error('Failed to parse OpenRouter response: ' + cleaned);\n}\n\nconst sheetData = $('🔍 Is Row Pending?').first().json;\nconst draftId = 'draft_' + Date.now();\nconst serviceName = (sheetData['Service'] || '').replace(/\\n|\\r/g, ' ').trim();\n\n// Pull the confirmed logo URL from the upstream node\nconst logoUrl = $('⚙️ Extract Logo URL').first().json.logo_url;\n\nreturn [{\n  json: {\n    draft_id:               draftId,\n    draft_id_for_button:    draftId,\n    Status:                 'Pending',\n    service_draft:          serviceName,\n    service:                serviceName,\n    linkedin_draft:         posts.linkedin,\n    instagram_draft:        posts.instagram,\n    linkedin:               posts.linkedin,\n    instagram:              posts.instagram,\n    image_prompt_linkedin:  posts.image_prompt_linkedin,\n    image_prompt_instagram: posts.image_prompt_instagram,\n    logo_url:               logoUrl\n  }\n}];\n"
+      },
+      "id": "3b502984-339b-47e6-b7cb-38e34b39b02f",
+      "name": "⚙️ Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        2224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{HUGGINGFACE_API_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ inputs: $('⚙️ Parse AI Response').first().json.image_prompt_linkedin + ', ultra premium corporate poster quality, hyper-realistic photographic render, cinematic volumetric lighting with dramatic shadows and neon blue glow, deep dark navy background (#0A0E1A), glossy metallic surfaces with gold and chrome reflections, 8K ultra-sharp detail, award-winning commercial photography for Microsoft or IBM Security campaign, professional centered composition with generous clean lower third area for branding overlay, no text no letters no words no watermarks anywhere in the image, aspect ratio 1:1' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "id": "7aa3b49b-f287-465c-a3b0-809b4190c76b",
+      "name": "🖼️ Flux - LinkedIn Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1552,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "api_key",
+              "value": "274139446361699"
+            },
+            {
+              "name": "upload_preset",
+              "value": "ml_default"
+            },
+            {
+              "name": "public_id",
+              "value": "={{ 'iksatech/base/li_' + $('⚙️ Parse AI Response').first().json.draft_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89c30b7b-eb2f-4c1d-981e-41095450a10e",
+      "name": "☁️ Upload LinkedIn Image (Cloudinary)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1728,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{HUGGINGFACE_API_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ inputs: $('⚙️ Parse AI Response').first().json.image_prompt_instagram + ', ultra premium luxury digital art, hyper-realistic cinematic render, explosive neon blue and metallic gold color palette, deep dark navy background, dramatic volumetric lighting with electric blue glow halos, 8K ultra-detailed photorealistic quality, bold impactful composition, glossy surfaces with holographic reflections, futuristic luxury tech aesthetic, clean lower third area for branding card, no text no letters no words no watermarks anywhere in image, portrait aspect ratio 4:5' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "id": "d9a11e54-af32-44d8-82c1-b9de34a42de6",
+      "name": "🖼️ Flux - Instagram Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1968,
+        2048
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "api_key",
+              "value": "274139446361699"
+            },
+            {
+              "name": "upload_preset",
+              "value": "ml_default"
+            },
+            {
+              "name": "public_id",
+              "value": "={{ 'iksatech/base/ig_' + $('⚙️ Parse AI Response').first().json.draft_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "32c3fef8-2868-4bbf-b0b2-973db241387a",
+      "name": "☁️ Upload Instagram Image (Cloudinary)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2128,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// ─── Build ULTRA PREMIUM HTML Composite for hcti.io ─────────────────────────\n// Real IKSATECH logo loaded as <img> from Cloudinary URL\n// Glassmorphism card | Metallic gold branding | Neon blue accents\n// Matches the reference poster: luxury, futuristic, dark navy\n\nconst draft    = $('⚙️ Parse AI Response').first().json;\nconst liUpload = $('☁️ Upload LinkedIn Image (Cloudinary)').first().json;\nconst igUpload = $('☁️ Upload Instagram Image (Cloudinary)').first().json;\n\n// Real logo URL from Cloudinary\nconst logoUrl  = draft.logo_url || 'https://res.cloudinary.com/dmnkmwdmu/image/upload/iksatech/brand/logo.png';\n\nconst serviceMap = {\n  'Transformation Digitale':                { color: '#00AAFF', accent: '#0055CC', tag: 'TRANSFORMATION DIGITALE' },\n  'Marketing Digital & SEO':                { color: '#00CC88', accent: '#007755', tag: 'MARKETING DIGITAL & SEO' },\n  'Conception de Visuels & Branding':       { color: '#FF8800', accent: '#CC5500', tag: 'BRANDING & DESIGN' },\n  'Solutions IT & Cloud':                   { color: '#00CCFF', accent: '#0088CC', tag: 'CLOUD & IT' },\n  'ERP Odoo & Solutions Métier':            { color: '#FFAA00', accent: '#CC7700', tag: 'ERP ODOO' },\n  'Développement Web & Mobile':             { color: '#AA44FF', accent: '#6600CC', tag: 'DEV WEB & MOBILE' },\n  'Automatisation & RPA':                   { color: '#FF44AA', accent: '#CC0077', tag: 'AUTOMATISATION & RPA' },\n  'Intelligence Artificielle':              { color: '#FF5533', accent: '#CC2200', tag: 'INTELLIGENCE ARTIFICIELLE' },\n  'Cybersécurité':                          { color: '#0088FF', accent: '#0044BB', tag: 'CYBERSÉCURITÉ' },\n  'Audit Digital Gratuit':                  { color: '#00BB55', accent: '#007733', tag: 'AUDIT DIGITAL' },\n  'Pack SCALE - Excellence Opérationnelle': { color: '#FFCC00', accent: '#CC9900', tag: 'PACK SCALE' }\n};\n\nconst service = draft.service || 'Service IKSATECH';\nconst meta    = serviceMap[service] || { color: '#0088FF', accent: '#0044BB', tag: service.toUpperCase().substring(0, 28) };\n\nconst fullText  = draft.linkedin_draft || '';\nconst sentences = fullText.split(/[.\\n]/).map(s => s.trim()).filter(s => s.length > 15);\nconst desc      = (sentences[0] || service).substring(0, 88);\n\nconst liBgUrl = liUpload.secure_url;\nconst igBgUrl = igUpload.secure_url;\n\nfunction buildPremiumHTML(bgUrl, width, height) {\n  const cardBottom  = height > width ? 60 : 44;\n  const cardPadH    = 44;\n  const descSize    = height > width ? '18px' : '17px';\n\n  return `<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<style>\n  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');\n  * { margin:0; padding:0; box-sizing:border-box; }\n\n  body {\n    width: ${width}px;\n    height: ${height}px;\n    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;\n    position: relative;\n    overflow: hidden;\n    background: #050912;\n  }\n\n  /* ── BACKGROUND IMAGE ── */\n  .bg {\n    position: absolute;\n    inset: 0;\n    background-image: url('${bgUrl}');\n    background-size: cover;\n    background-position: center top;\n    z-index: 0;\n  }\n  .bg::before {\n    content: '';\n    position: absolute;\n    inset: 0;\n    background:\n      radial-gradient(ellipse at 50% 0%, transparent 40%, rgba(5,9,18,0.30) 100%),\n      radial-gradient(ellipse at 0% 50%, rgba(5,9,18,0.20) 0%, transparent 60%),\n      radial-gradient(ellipse at 100% 50%, rgba(5,9,18,0.20) 0%, transparent 60%);\n  }\n  .bg::after {\n    content: '';\n    position: absolute;\n    bottom: 0; left: 0; right: 0;\n    height: 64%;\n    background: linear-gradient(\n      to top,\n      rgba(5,9,18,0.97) 0%,\n      rgba(5,9,18,0.90) 18%,\n      rgba(5,9,18,0.68) 42%,\n      rgba(5,9,18,0.12) 70%,\n      transparent 100%\n    );\n  }\n\n  /* ── TOP-RIGHT CORNER ACCENT ── */\n  .corner-tl {\n    position: absolute;\n    top: 28px; right: 28px;\n    z-index: 5;\n    display: flex;\n    flex-direction: column;\n    align-items: flex-end;\n    gap: 4px;\n  }\n  .corner-line-h {\n    width: 72px; height: 1.5px;\n    background: linear-gradient(90deg, transparent, ${meta.color}CC);\n  }\n  .corner-line-v {\n    width: 1.5px; height: 56px;\n    margin-right: 0;\n    background: linear-gradient(180deg, ${meta.color}CC, transparent);\n    align-self: flex-end;\n  }\n  .corner-dot {\n    width: 6px; height: 6px;\n    border-radius: 50%;\n    background: ${meta.color};\n    box-shadow: 0 0 10px ${meta.color};\n    align-self: flex-end;\n  }\n\n  /* ── PARTNER TAGLINE (top right) ── */\n  .top-partner {\n    position: absolute;\n    top: 34px; right: 112px;\n    z-index: 5;\n    text-align: right;\n    border-right: 2px solid ${meta.color}88;\n    padding-right: 14px;\n  }\n  .top-partner .tp1 {\n    font-size: 10px;\n    font-weight: 700;\n    letter-spacing: 0.18em;\n    color: rgba(255,255,255,0.42);\n    text-transform: uppercase;\n  }\n  .top-partner .tp2 {\n    font-size: 11px;\n    font-weight: 800;\n    letter-spacing: 0.12em;\n    color: ${meta.color};\n    text-transform: uppercase;\n    margin-top: 3px;\n  }\n\n  /* ── MAIN GLASS CARD ── */\n  .card {\n    position: absolute;\n    bottom: ${cardBottom}px;\n    left: ${cardPadH}px;\n    right: ${cardPadH}px;\n    z-index: 10;\n    background: linear-gradient(\n      135deg,\n      rgba(255,255,255,0.14) 0%,\n      rgba(255,255,255,0.06) 50%,\n      rgba(8,16,42,0.60) 100%\n    );\n    backdrop-filter: blur(28px);\n    -webkit-backdrop-filter: blur(28px);\n    border: 1px solid rgba(255,255,255,0.16);\n    border-top: 1px solid rgba(255,255,255,0.28);\n    border-left: 1px solid rgba(255,255,255,0.20);\n    border-radius: 22px;\n    padding: 28px 36px 30px;\n    box-shadow:\n      0 20px 80px rgba(0,0,0,0.75),\n      0 4px 24px rgba(0,0,0,0.55),\n      inset 0 1px 0 rgba(255,255,255,0.22),\n      inset 0 -1px 0 rgba(0,0,0,0.18),\n      0 0 100px ${meta.color}14;\n    overflow: hidden;\n  }\n  /* Glow orb inside card */\n  .card::before {\n    content: '';\n    position: absolute;\n    top: -70px; left: -50px;\n    width: 240px; height: 240px;\n    background: radial-gradient(circle, ${meta.color}28 0%, transparent 65%);\n    pointer-events: none;\n    z-index: 0;\n  }\n  /* Shimmer line at top of card */\n  .card::after {\n    content: '';\n    position: absolute;\n    top: 0; left: 8%; right: 8%;\n    height: 1px;\n    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent);\n  }\n\n  .card-inner { position: relative; z-index: 1; }\n\n  /* ── TOP ROW: real logo + partner badge ── */\n  .top-row {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n    margin-bottom: 18px;\n  }\n\n  /* Real logo image from Cloudinary */\n  .logo-img {\n    height: 38px;\n    width: auto;\n    max-width: 220px;\n    object-fit: contain;\n    filter:\n      drop-shadow(0 0 8px rgba(255,200,0,0.55))\n      drop-shadow(0 0 18px rgba(255,160,0,0.30))\n      brightness(1.08)\n      contrast(1.05);\n    /* Metallic gold tint on white/transparent logo */\n    /* If logo is already gold this is a subtle enhancement */\n  }\n\n  /* Sub-label under logo */\n  .logo-sub {\n    font-size: 9px;\n    font-weight: 700;\n    letter-spacing: 0.24em;\n    color: rgba(255,255,255,0.42);\n    text-transform: uppercase;\n    margin-top: 5px;\n  }\n\n  /* Partner tag right side */\n  .partner-tag {\n    text-align: right;\n    border-left: 2px solid ${meta.color}77;\n    padding-left: 14px;\n  }\n  .pt1 { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; color: rgba(255,255,255,0.42); text-transform: uppercase; }\n  .pt2 { font-size: 11px; font-weight: 800; letter-spacing: 0.10em; color: ${meta.color}; text-transform: uppercase; margin-top: 2px; }\n\n  /* ── SERVICE BADGE ── */\n  .service-badge {\n    display: inline-flex;\n    align-items: center;\n    gap: 10px;\n    margin-bottom: 15px;\n  }\n  .badge-line {\n    width: 28px; height: 2px;\n    background: linear-gradient(90deg, ${meta.color}, ${meta.color}44);\n    border-radius: 2px;\n    box-shadow: 0 0 8px ${meta.color}88;\n  }\n  .badge-label {\n    font-size: 10.5px;\n    font-weight: 800;\n    letter-spacing: 0.20em;\n    color: ${meta.color};\n    text-transform: uppercase;\n  }\n\n  /* ── DESCRIPTION ── */\n  .desc {\n    font-size: ${descSize};\n    font-weight: 500;\n    line-height: 1.55;\n    color: rgba(255,255,255,0.88);\n    margin-bottom: 20px;\n    text-shadow: 0 1px 6px rgba(0,0,0,0.55);\n  }\n\n  /* ── SEPARATOR ── */\n  .sep {\n    height: 1px;\n    background: linear-gradient(90deg, rgba(255,255,255,0.20), ${meta.color}44, rgba(255,255,255,0.05));\n    margin-bottom: 18px;\n  }\n\n  /* ── BOTTOM ROW ── */\n  .bottom-row {\n    display: flex;\n    align-items: center;\n    justify-content: space-between;\n  }\n  .website-block { display: flex; align-items: center; gap: 9px; }\n  .web-dot {\n    width: 6px; height: 6px;\n    background: ${meta.color};\n    border-radius: 50%;\n    box-shadow: 0 0 8px ${meta.color}, 0 0 16px ${meta.color}66;\n  }\n  .website {\n    font-size: 12px;\n    font-weight: 700;\n    color: rgba(255,255,255,0.62);\n    letter-spacing: 0.07em;\n  }\n  .cta-btn {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: linear-gradient(135deg, ${meta.color}EE 0%, ${meta.accent}DD 100%);\n    color: #fff;\n    font-size: 11px;\n    font-weight: 800;\n    letter-spacing: 0.14em;\n    text-transform: uppercase;\n    padding: 11px 22px;\n    border-radius: 50px;\n    box-shadow:\n      0 6px 20px ${meta.color}55,\n      0 2px 8px rgba(0,0,0,0.40),\n      inset 0 1px 0 rgba(255,255,255,0.25);\n  }\n</style>\n</head>\n<body>\n\n  <!-- Background AI image -->\n  <div class=\"bg\"></div>\n\n  <!-- Corner accent lines -->\n  <div class=\"corner-tl\">\n    <div class=\"corner-dot\"></div>\n    <div class=\"corner-line-v\"></div>\n    <div class=\"corner-line-h\"></div>\n  </div>\n\n  <!-- Top-right partner tag -->\n  <div class=\"top-partner\">\n    <div class=\"tp1\">Votre partenaire</div>\n    <div class=\"tp2\">en digital</div>\n  </div>\n\n  <!-- Premium glass card -->\n  <div class=\"card\">\n    <div class=\"card-inner\">\n\n      <!-- Top row: REAL Cloudinary logo + partner label -->\n      <div class=\"top-row\">\n        <div>\n          <img class=\"logo-img\" src=\"${logoUrl}\" alt=\"IKSATECH\" crossorigin=\"anonymous\" />\n          <div class=\"logo-sub\">Digital Excellence</div>\n        </div>\n        <div class=\"partner-tag\">\n          <div class=\"pt1\">Expertise</div>\n          <div class=\"pt2\">Premium</div>\n        </div>\n      </div>\n\n      <!-- Service badge -->\n      <div class=\"service-badge\">\n        <div class=\"badge-line\"></div>\n        <div class=\"badge-label\">${meta.tag}</div>\n      </div>\n\n      <!-- Description -->\n      <div class=\"desc\">${desc}</div>\n\n      <!-- Separator -->\n      <div class=\"sep\"></div>\n\n      <!-- Bottom: website + CTA -->\n      <div class=\"bottom-row\">\n        <div class=\"website-block\">\n          <div class=\"web-dot\"></div>\n          <div class=\"website\">www.iksatech.com</div>\n        </div>\n        <div class=\"cta-btn\">\n          <span>Découvrir</span>\n          <span style=\"font-size:14px;font-weight:900;\">&#8594;</span>\n        </div>\n      </div>\n\n    </div>\n  </div>\n\n</body>\n</html>`;\n}\n\nconst liHtml    = buildPremiumHTML(liBgUrl, 1080, 1080);\nconst igHtml    = buildPremiumHTML(igBgUrl, 1080, 1350);\nconst storyHtml = buildPremiumHTML(igBgUrl, 1080, 1920);\n\nreturn [{\n  json: {\n    li_html:    liHtml,\n    ig_html:    igHtml,\n    story_html: storyHtml,\n    service:    draft.service,\n    draft_id:   draft.draft_id\n  }\n}];\n"
+      },
+      "id": "86b84291-693c-46e1-99ae-aed1e3e5a0a4",
+      "name": "⚙️ Build HTML Overlay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hcti.io/v1/image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ html: $json.li_html, viewport_width: 1080, viewport_height: 1080, device_scale_factor: 2, ms_delay: 1200 }) }}",
+        "options": {}
+      },
+      "id": "64687454-0f46-4603-9b3b-e59e2f7b8b96",
+      "name": "🖼️ hcti.io - Render LinkedIn Composite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        2048
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "Lg89o2u8y1QQaKx7",
+          "name": "Unnamed credential"
+        }
+      },
+      "notes": "ms_delay:1200 gives hcti.io enough time to load the Cloudinary logo image before screenshot"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ file: $json.url, api_key: '274139446361699', upload_preset: 'ml_default', public_id: 'iksatech/final/li_final_' + $('⚙️ Parse AI Response').first().json.draft_id }) }}",
+        "options": {}
+      },
+      "id": "fc45f7a5-3900-48e5-9fdd-194f767b9f8d",
+      "name": "☁️ Upload LinkedIn Composite (Cloudinary)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2752,
+        2032
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst liFinal  = $json;\nconst igUpload = $('☁️ Upload Instagram Composite (Cloudinary)').first().json;\nconst draft    = $('⚙️ Parse AI Response').first().json;\n\nif (!liFinal.secure_url) throw new Error('LI final composite missing: ' + JSON.stringify(liFinal));\nif (!igUpload.secure_url) throw new Error('IG composite upload missing: ' + JSON.stringify(igUpload));\n\nconst liComposite = liFinal.secure_url;\nconst igComposite = igUpload.secure_url;\n\n// ── Force Telegram-safe public JPG URL via Cloudinary transformation ──\n// Replaces /upload/ with /upload/f_jpg,q_auto:best,w_1080/ in the URL\n// This guarantees: public access, JPG format, correct size, no auth required\nconst igCompositeTelegram = igComposite.replace(\n  '/upload/',\n  '/upload/f_jpg,q_auto:best,w_1080/'\n);\n\nreturn [{\n  json: {\n    draft_id:               draft.draft_id,\n    draft_id_for_button:    draft.draft_id_for_button,\n    Status:                 'Waiting Approval ⏳',\n    service_draft:          draft.service_draft,\n    service:                draft.service,\n    linkedin_draft:         draft.linkedin_draft,\n    instagram_draft:        draft.instagram_draft,\n    linkedin:               draft.linkedin,\n    instagram:              draft.instagram,\n    image_prompt_linkedin:  draft.image_prompt_linkedin,\n    image_prompt_instagram: draft.image_prompt_instagram,\n    linkedin_image_url:     liComposite,\n    // instagram_image_url already set above with Telegram-safe URL\n    instagram_story_url:    igComposite,\n    li_base_url:            liComposite,\n    ig_base_url:            igComposite,\n    overlay_url:            igCompositeTelegram,\n    instagram_image_url:    igCompositeTelegram,\n    instagram_image_url_raw: igComposite\n  }\n}];\n"
+      },
+      "id": "506c88fd-a7bf-4162-bfbd-1f116fccad47",
+      "name": "🔗 Build Cloudinary Composite URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3280,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "draft_post",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "draft_id": "={{ $json.draft_id }}",
+            "draft_id_for_button": "={{ $json.draft_id_for_button }}",
+            "Status": "Pending",
+            "service_draft": "={{ $json.service_draft }}",
+            "service": "={{ $json.service }}",
+            "linkedin_draft": "={{ $json.linkedin_draft }}",
+            "instagram_draft": "={{ $json.instagram_draft }}",
+            "linkedin_image_url": "={{ $json.linkedin_image_url }}",
+            "instagram_image_url": "={{ $json.instagram_image_url }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "instagram": "={{ $json.instagram }}",
+            "image_prompt_linkedin": "={{ $json.image_prompt_linkedin }}",
+            "image_prompt_instagram": "={{ $json.image_prompt_instagram }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin_draft",
+              "displayName": "linkedin_draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "instagram_draft",
+              "displayName": "instagram_draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin_image_url",
+              "displayName": "linkedin_image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "instagram_image_url",
+              "displayName": "instagram_image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "service_draft",
+              "displayName": "service_draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "image_prompt_linkedin",
+              "displayName": "image_prompt_linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "instagram",
+              "displayName": "instagram",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "service",
+              "displayName": "service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "draft_id_for_button",
+              "displayName": "draft_id_for_button",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "image_prompt_instagram",
+              "displayName": "image_prompt_instagram",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "01182d47-28ca-4035-950f-92487d93372e",
+      "name": "💾 Save Draft to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3552,
+        2048
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 8
+      },
+      "id": "ba5dcc4b-0360-4e9a-b15d-0c3e9dabd5c5",
+      "name": "⏳ Wait for Image",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2272,
+        1920
+      ],
+      "webhookId": "27665e51-21c4-4ef5-8899-db27667a1970"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8781505793:AAEipHQFThY0fTdHgROXdrgeWb51pfCPNDw/sendPhoto",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  chat_id: \"5409067563\",\n  photo: $('🔗 Build Cloudinary Composite URLs').first().json.instagram_image_url,\n  caption: \"🚀 *NOUVEAU POST IKSATECH*\\n\\n📌 *Service:* \" + $('🔗 Build Cloudinary Composite URLs').first().json.service.replace(/\\n|\\r/g, \" \").trim() + \"\\n\\n━━━━━━━━━━━━━━━━\\n🔷 *LINKEDIN:*\\n\" + $('🔗 Build Cloudinary Composite URLs').first().json.linkedin_draft.substring(0,500) + \"\\n\\n━━━━━━━━━━━━━━━━\\n📸 *INSTAGRAM:*\\n\" + $('🔗 Build Cloudinary Composite URLs').first().json.instagram_draft.substring(0,350),\n  parse_mode: \"Markdown\",\n  reply_markup: {\n    inline_keyboard: [[\n      { text: \"✅ VALIDER\", callback_data: \"VALIDER:\" + $('🔗 Build Cloudinary Composite URLs').first().json.draft_id_for_button },\n      { text: \"❌ REFUSER\", callback_data: \"REFUSER:\" + $('🔗 Build Cloudinary Composite URLs').first().json.draft_id_for_button }\n    ]]\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "343e7d61-4e4e-408b-9833-41f1e8434a8c",
+      "name": "📱 Send to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2624,
+        1664
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "f9446188-ea69-4e68-8f17-64e9bce9b514",
+      "name": "📲 Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        2304
+      ],
+      "webhookId": "tg-trigger-callback",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdRwR3Fb7Djc86UD",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $input.first().json;\nconst callbackData = update?.callback_query?.data || '';\nconst colonIdx = callbackData.indexOf(':');\nconst action = colonIdx > -1 ? callbackData.substring(0, colonIdx) : callbackData;\nconst draft_id = colonIdx > -1 ? callbackData.substring(colonIdx + 1).trim() : '';\nconst callbackQueryId = update?.callback_query?.id || '';\nconst chatId = update?.callback_query?.message?.chat?.id || '5409067563';\nreturn [{ json: { action: action.toUpperCase().trim(), draft_id, callbackQueryId, chatId } }];"
+      },
+      "id": "6bc9578e-3ca4-4913-8be1-8f6f2d33a05f",
+      "name": "⚙️ Parse Callback Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        2672
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1544978198,
+          "mode": "list",
+          "cachedResultName": "draft_post",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=1544978198"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "draft_id",
+              "lookupValue": "={{ $('⚙️ Parse Callback Data').first().json.draft_id.trim() }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "id": "eaf84095-f3d2-4f89-9b4f-0432994748e1",
+      "name": "📖 Read Draft from Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2672,
+        2960
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $('⚙️ Parse Callback Data').first().json.action }}",
+              "rightValue": "VALIDER",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "b0df9d64-7f59-4798-aaad-581779eeb4ee",
+      "name": "✅ Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        2432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8781505793:AAEipHQFThY0fTdHgROXdrgeWb51pfCPNDw/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"callback_query_id\": \"{{ $('⚙️ Parse Callback Data').first().json.callbackQueryId }}\",\n  \"text\": \"✅ Publication en cours...\"\n}",
+        "options": {}
+      },
+      "id": "dfdfa3dc-ebfe-4949-8f90-9c0d65d02592",
+      "name": "✅ Telegram ACK Approved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2992,
+        2256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8781505793:AAEipHQFThY0fTdHgROXdrgeWb51pfCPNDw/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"callback_query_id\": \"{{ $('⚙️ Parse Callback Data').first().json.callbackQueryId }}\",\n  \"text\": \"❌ Post refusé.\"\n}",
+        "options": {}
+      },
+      "id": "b657f7cc-2bdf-4bcd-b6a0-5169d72890fd",
+      "name": "❌ Telegram ACK Refused",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3008,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst draft = $('📖 Read Draft from Sheet').first().json;\nlet imageUrl = draft.instagram_image_url || '';\nif (!imageUrl || imageUrl.trim() === '') {\n  throw new Error('No instagram_image_url found for draft_id: ' + draft.draft_id);\n}\nreturn [{\n  json: {\n    instagram_image_url: imageUrl,\n    instagram_draft:     draft.instagram_draft,\n    linkedin_image_url:  draft.linkedin_image_url,\n    linkedin_draft:      draft.linkedin_draft,\n    service_draft:       draft.service_draft,\n    draft_id:            draft.draft_id,\n    row_number:          draft.row_number\n  }\n}];\n"
+      },
+      "id": "f3549084-30c5-4e54-8627-3f63e04da938",
+      "name": "🔧 Fix & Validate Image URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3232,
+        3072
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/userinfo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{META_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3ac0f989-0df7-41b5-a5f5-6e6e80e20198",
+      "name": "🔍 Get LinkedIn Person ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3104,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{META_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"registerUploadRequest\": {\n    \"recipes\": [\"urn:li:digitalmediaRecipe:feedshare-image\"],\n    \"owner\": \"urn:li:person:{{ $('🔍 Get LinkedIn Person ID').first().json.sub }}\",\n    \"serviceRelationships\": [{ \"relationshipType\": \"OWNER\", \"identifier\": \"urn:li:userGeneratedContent\" }]\n  }\n}",
+        "options": {}
+      },
+      "id": "2a35c420-5b01-45e6-b1d6-bd1225279dc6",
+      "name": "📤 LinkedIn Register Image Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        1824
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('📖 Read Draft from Sheet').first().json.linkedin_image_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "47c507e0-6398-4744-ab39-450cf55363aa",
+      "name": "⬇️ Download LinkedIn Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3616,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('📤 LinkedIn Register Image Upload').first().json.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{META_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "3f8d8cfc-14b8-4184-adde-a8395bc3c2e5",
+      "name": "⬆️ LinkedIn Upload Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3824,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{META_ACCESS_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"author\": \"urn:li:person:{{ $('🔍 Get LinkedIn Person ID').first().json.sub }}\",\n  \"lifecycleState\": \"PUBLISHED\",\n  \"specificContent\": {\n    \"com.linkedin.ugc.ShareContent\": {\n      \"shareCommentary\": { \"text\": \"{{ $('📖 Read Draft from Sheet').first().json.linkedin_draft }}\" },\n      \"shareMediaCategory\": \"IMAGE\",\n      \"media\": [{\n        \"status\": \"READY\",\n        \"description\": { \"text\": \"{{ $('📖 Read Draft from Sheet').first().json.service_draft }}\" },\n        \"media\": \"{{ $('📤 LinkedIn Register Image Upload').first().json.value.asset }}\",\n        \"title\": { \"text\": \"{{ $('📖 Read Draft from Sheet').first().json.service_draft }}\" }\n      }]\n    }\n  },\n  \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" }\n}",
+        "options": {}
+      },
+      "id": "fb51f9cb-812a-483a-baf9-a6673736404c",
+      "name": "🔷 Post to LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4192,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/17841425769301431/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('🔧 Fix & Validate Image URL').first().json.instagram_image_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('🔧 Fix & Validate Image URL').first().json.instagram_draft }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAASa9uSgz2oBRvResQcDlf0DsIveusDvAI3SadWpKVQHw4xEyUbQLNlG2cNml4Ikvl2lJ1K5Yz9TAhhUZAaZCoZApaGsTy5xgi4K6P8zPqfRZAyujaDv1az820X6H7ALXyAoR9mHgRjBb3iNn273Cweg27ohUzrmr4YYIgzMxVP0vKpJX9sylHfN1ZA9S2i8j5i5bzgdkxO4GZAh1ACGvgH5cNoSJappLvO4uL7XnsjvsEZADCJ6mZAdmQGZBDeQw85bJZAa2yNYZAnlTjH6Ito0S9S"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6f8ba92b-2563-4d42-b561-a4f1a8694169",
+      "name": "📸 Create Instagram Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3376,
+        2272
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/17841425769301431/media_publish",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAASa9uSgz2oBRvResQcDlf0DsIveusDvAI3SadWpKVQHw4xEyUbQLNlG2cNml4Ikvl2lJ1K5Yz9TAhhUZAaZCoZApaGsTy5xgi4K6P8zPqfRZAyujaDv1az820X6H7ALXyAoR9mHgRjBb3iNn273Cweg27ohUzrmr4YYIgzMxVP0vKpJX9sylHfN1ZA9S2i8j5i5bzgdkxO4GZAh1ACGvgH5cNoSJappLvO4uL7XnsjvsEZADCJ6mZAdmQGZBDeQw85bJZAa2yNYZAnlTjH6Ito0S9S"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1bc7c4ff-4772-47b0-afbc-c444fe261277",
+      "name": "📸 Publish Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3568,
+        2384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/17841425769301431/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $('🔧 Fix & Validate Image URL').first().json.instagram_image_url.replace('width=1080&height=1080', 'width=1080&height=1920') }}"
+            },
+            {
+              "name": "media_type",
+              "value": "STORIES"
+            },
+            {
+              "name": "is_stories_item",
+              "value": "true"
+            },
+            {
+              "name": "access_token",
+              "value": "EAASa9uSgz2oBRvResQcDlf0DsIveusDvAI3SadWpKVQHw4xEyUbQLNlG2cNml4Ikvl2lJ1K5Yz9TAhhUZAaZCoZApaGsTy5xgi4K6P8zPqfRZAyujaDv1az820X6H7ALXyAoR9mHgRjBb3iNn273Cweg27ohUzrmr4YYIgzMxVP0vKpJX9sylHfN1ZA9S2i8j5i5bzgdkxO4GZAh1ACGvgH5cNoSJappLvO4uL7XnsjvsEZADCJ6mZAdmQGZBDeQw85bJZAa2yNYZAnlTjH6Ito0S9S"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8c353bbb-9ca4-41ca-bf15-14f134ca38dc",
+      "name": "📸 Create Instagram Story Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3920,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/17841425769301431/media_publish",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "EAASa9uSgz2oBRvResQcDlf0DsIveusDvAI3SadWpKVQHw4xEyUbQLNlG2cNml4Ikvl2lJ1K5Yz9TAhhUZAaZCoZApaGsTy5xgi4K6P8zPqfRZAyujaDv1az820X6H7ALXyAoR9mHgRjBb3iNn273Cweg27ohUzrmr4YYIgzMxVP0vKpJX9sylHfN1ZA9S2i8j5i5bzgdkxO4GZAh1ACGvgH5cNoSJappLvO4uL7XnsjvsEZADCJ6mZAdmQGZBDeQw85bJZAa2yNYZAnlTjH6Ito0S9S"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bf2b0407-c8ed-4149-b478-33d7c84653bd",
+      "name": "📸 Publish Instagram Story",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4176,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "draft_post",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Published ✅",
+            "draft_id": "={{ $('⚙️ Parse Callback Data').first().json.draft_id }}"
+          },
+          "matchingColumns": [
+            "draft_id"
+          ],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a2c46744-1891-42a3-a887-1cb7e0c3543e",
+      "name": "✅ Update Sheet - Published",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4384,
+        2144
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "draft_post",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Refused ❌",
+            "draft_id": "={{ $('⚙️ Parse Callback Data').first().json.draft_id }}"
+          },
+          "matchingColumns": [
+            "draft_id"
+          ],
+          "schema": [
+            {
+              "id": "draft_id",
+              "displayName": "draft_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "38e5f6cf-522b-4e19-ab9a-d9939e5e596f",
+      "name": "❌ Update Sheet - Refused",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3552,
+        2800
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "page of informations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "draft_id_info": "={{ $('⚙️ Parse Callback Data').first().json.draft_id.trim() }}",
+            "Status": "Published ✅",
+            "PublishedAt": "={{ new Date().toLocaleString('fr-MA', {timeZone: 'Africa/Casablanca'}) }}"
+          },
+          "matchingColumns": [
+            "draft_id_info"
+          ],
+          "schema": [
+            {
+              "id": "draft_id_info",
+              "displayName": "draft_id_info",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "PublishedAt",
+              "displayName": "PublishedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7b59ea37-72fd-40e7-b79a-d07d5c0db2bf",
+      "name": "✅ Update page of informations - Published",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4768,
+        2224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "page of informations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "draft_id_info": "={{ $('⚙️ Parse Callback Data').first().json.draft_id.trim() }}",
+            "Status": "Refused ❌",
+            "PublishedAt": "={{ new Date().toLocaleString('fr-MA', {timeZone: 'Africa/Casablanca'}) }}"
+          },
+          "matchingColumns": [
+            "draft_id_info"
+          ],
+          "schema": [
+            {
+              "id": "draft_id_info",
+              "displayName": "draft_id_info",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "PublishedAt",
+              "displayName": "PublishedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "49594aea-33fb-4998-b6e8-769957775cc1",
+      "name": "❌ Update page of informations - Refused",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3872,
+        2832
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo",
+          "mode": "list",
+          "cachedResultName": "iska_tech_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "page of informations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z9Awe0lwCFK57jKnm3Gqrkjf26XrsTjCXIOoW94b4Mo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Service": "={{ $json.service_draft.trim() }}",
+            "draft_id_info": "={{ $json.draft_id }}",
+            "row_number": "={{ $('📋 Read First Pending Row').item.json.row_number }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Hashtags",
+              "displayName": "Hashtags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PublishedAt",
+              "displayName": "PublishedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "draft_id_info",
+              "displayName": "draft_id_info",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9e98c15b-8311-4a9a-a3bd-fc04f7bfac89",
+      "name": "🔖 Stamp draft_id_info to page of informations",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2160,
+        2960
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RODIpd8BnaijLWz5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hcti.io/v1/image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ html: $('⚙️ Build HTML Overlay').first().json.ig_html, viewport_width: 1080, viewport_height: 1350, device_scale_factor: 2, ms_delay: 1200 }) }}",
+        "options": {}
+      },
+      "id": "332d52a9-f8de-4407-9eb4-ec19d182b119",
+      "name": "🖼️ hcti.io - Render Instagram Composite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2960,
+        2064
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "Lg89o2u8y1QQaKx7",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ file: $json.url, api_key: '274139446361699', upload_preset: 'ml_default', public_id: 'iksatech/composite/ig_' + $('⚙️ Parse AI Response').first().json.draft_id }) }}",
+        "options": {}
+      },
+      "id": "5adaf3d6-bc9e-4f06-b39e-3a8bba350729",
+      "name": "☁️ Upload Instagram Composite (Cloudinary)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        2064
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/1188731377649494/feed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  message: $('🔧 Fix & Validate Image URL').first().json.instagram_draft,\n  link: $('🔧 Fix & Validate Image URL').first().json.instagram_image_url,\n  access_token: 'EAASa9uSgz2oBRnSZAjzBhtpon0XZBz6dZCGyzdvwsbTXVZB6AqbCBAEbra8M4noQg8mo7SN07o44KnTDKDCQ3DWd0AGg6IP6wyS9lyxolMgt5ZCvWjFEKUZBWW1nSMMPaWitLqnmkwzMx7cJ1IYqZBXLPG1dKgxrspZAmnWLypoiGHC06JEmfiD5OfhyOZAbcoSGBo33ZCq7fG0tEr0gRRX8bASQJw1ST8rAoTxYYI1OYZD'\n}) }}",
+        "options": {}
+      },
+      "id": "6dacba3c-32dc-46a8-8135-0844119f4f22",
+      "name": "📘 Create Facebook Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3824,
+        2160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/1188731377649494/feed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  message: $('🔧 Fix & Validate Image URL').first().json.instagram_draft,\n  link: $('🔧 Fix & Validate Image URL').first().json.instagram_image_url,\n  access_token: 'EAASa9uSgz2oBRnSZAjzBhtpon0XZBz6dZCGyzdvwsbTXVZB6AqbCBAEbra8M4noQg8mo7SN07o44KnTDKDCQ3DWd0AGg6IP6wyS9lyxolMgt5ZCvWjFEKUZBWW1nSMMPaWitLqnmkwzMx7cJ1IYqZBXLPG1dKgxrspZAmnWLypoiGHC06JEmfiD5OfhyOZAbcoSGBo33ZCq7fG0tEr0gRRX8bASQJw1ST8rAoTxYYI1OYZD'\n}) }}",
+        "options": {}
+      },
+      "id": "37ab9ecc-d9b6-41b5-909a-f14b0e5c16ea",
+      "name": "📘 Publish Facebook Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4016,
+        2160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Schedule - Mon/Wed/Fri 9am": {
+      "main": [
+        [
+          {
+            "node": "☁️ Ensure Logo in Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Ensure Logo in Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Extract Logo URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Extract Logo URL": {
+      "main": [
+        [
+          {
+            "node": "📋 Read First Pending Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Read First Pending Row": {
+      "main": [
+        [
+          {
+            "node": "🔍 Is Row Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Is Row Pending?": {
+      "main": [
+        [
+          {
+            "node": "🤖 OpenRouter - Generate Posts + Image Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 OpenRouter - Generate Posts + Image Prompts": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "🖼️ Flux - LinkedIn Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ Flux - LinkedIn Image": {
+      "main": [
+        [
+          {
+            "node": "☁️ Upload LinkedIn Image (Cloudinary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Upload LinkedIn Image (Cloudinary)": {
+      "main": [
+        [
+          {
+            "node": "🖼️ Flux - Instagram Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ Flux - Instagram Image": {
+      "main": [
+        [
+          {
+            "node": "☁️ Upload Instagram Image (Cloudinary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Upload Instagram Image (Cloudinary)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Build HTML Overlay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Build HTML Overlay": {
+      "main": [
+        [
+          {
+            "node": "🖼️ hcti.io - Render LinkedIn Composite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ hcti.io - Render LinkedIn Composite": {
+      "main": [
+        [
+          {
+            "node": "☁️ Upload LinkedIn Composite (Cloudinary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Upload LinkedIn Composite (Cloudinary)": {
+      "main": [
+        [
+          {
+            "node": "🖼️ hcti.io - Render Instagram Composite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Build Cloudinary Composite URLs": {
+      "main": [
+        [
+          {
+            "node": "💾 Save Draft to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Save Draft to Sheet": {
+      "main": [
+        [
+          {
+            "node": "🔖 Stamp draft_id_info to page of informations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔖 Stamp draft_id_info to page of informations": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait for Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Wait for Image": {
+      "main": [
+        [
+          {
+            "node": "📱 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📲 Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Parse Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Parse Callback Data": {
+      "main": [
+        [
+          {
+            "node": "📖 Read Draft from Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📖 Read Draft from Sheet": {
+      "main": [
+        [
+          {
+            "node": "✅ Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Approved?": {
+      "main": [
+        [
+          {
+            "node": "✅ Telegram ACK Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ Telegram ACK Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Telegram ACK Approved": {
+      "main": [
+        [
+          {
+            "node": "🔧 Fix & Validate Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❌ Telegram ACK Refused": {
+      "main": [
+        [
+          {
+            "node": "❌ Update Sheet - Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❌ Update Sheet - Refused": {
+      "main": [
+        [
+          {
+            "node": "❌ Update page of informations - Refused",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Fix & Validate Image URL": {
+      "main": [
+        [
+          {
+            "node": "📸 Create Instagram Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Create Instagram Media": {
+      "main": [
+        [
+          {
+            "node": "📸 Publish Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Publish Instagram": {
+      "main": [
+        [
+          {
+            "node": "📘 Create Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Create Instagram Story Container": {
+      "main": [
+        [
+          {
+            "node": "📸 Publish Instagram Story",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Publish Instagram Story": {
+      "main": [
+        [
+          {
+            "node": "✅ Update Sheet - Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Update Sheet - Published": {
+      "main": [
+        [
+          {
+            "node": "✅ Update page of informations - Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Get LinkedIn Person ID": {
+      "main": [
+        [
+          {
+            "node": "📤 LinkedIn Register Image Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 LinkedIn Register Image Upload": {
+      "main": [
+        [
+          {
+            "node": "⬇️ Download LinkedIn Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⬇️ Download LinkedIn Image": {
+      "main": [
+        [
+          {
+            "node": "⬆️ LinkedIn Upload Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⬆️ LinkedIn Upload Image": {
+      "main": [
+        [
+          {
+            "node": "🔷 Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔷 Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "✅ Update page of informations - Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ hcti.io - Render Instagram Composite": {
+      "main": [
+        [
+          {
+            "node": "☁️ Upload Instagram Composite (Cloudinary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Upload Instagram Composite (Cloudinary)": {
+      "main": [
+        [
+          {
+            "node": "🔗 Build Cloudinary Composite URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📘 Create Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "📘 Publish Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📘 Publish Facebook Post": {
+      "main": [
+        [
+          {
+            "node": "📸 Create Instagram Story Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "85340100-f947-4d5b-af9c-ea3a7fd62d0b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "17993ad331ccaf7771834a63e6c5ccb031972936d233ed7415d67f6716f2c68a"
+  },
+  "id": "6H3JW6PsROQuO7Cy",
+  "tags": []
+}
