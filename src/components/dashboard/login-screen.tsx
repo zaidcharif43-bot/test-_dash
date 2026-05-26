@@ -106,7 +106,7 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
   // Registration expansion states
   const [isRegistering, setIsRegistering] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [selectedRole, setSelectedRole] = useState("community_manager");
+  const selectedRole = "community_manager";
 
   const t = (key: string) => {
     const langDict = loginTranslations[language] || loginTranslations["Français"];
@@ -496,43 +496,7 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
               </div>
             </div>
 
-            {/* Role Selection (only for Registration) */}
-            {isRegistering && (
-              <div className="space-y-1.5 animate-fadeIn">
-                <label className={clsx(
-                  "block text-xs font-bold uppercase tracking-wider",
-                  theme === "dark" ? "text-gray-400" : "text-slate-500"
-                )}>
-                  {t("roleLabel")}
-                </label>
-                <div className="relative group">
-                  <select
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    className={clsx(
-                      "w-full rounded-xl border py-3 text-sm focus:outline-none transition-all duration-300 appearance-none cursor-pointer",
-                      isRtl ? "pr-4 pl-10 text-right" : "pl-4 pr-10 text-left",
-                      theme === "dark"
-                        ? "border-white/10 bg-slate-950/50 text-white focus:border-[#D4A017]/50 focus:ring-1 focus:ring-[#D4A017]/30"
-                        : "border-slate-200 bg-slate-50 text-slate-900 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20"
-                    )}
-                  >
-                    <option value="community_manager" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Community Manager</option>
-                    <option value="admin" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Administrateur / Admin</option>
-                    <option value="manager" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Manager</option>
-                    <option value="designer" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Designer</option>
-                    <option value="commercial" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Commercial</option>
-                    <option value="client" className={theme === "dark" ? "bg-slate-900 text-white" : "bg-white text-slate-900"}>Client</option>
-                  </select>
-                  <div className={clsx(
-                    "absolute inset-y-0 flex items-center pointer-events-none text-slate-400",
-                    isRtl ? "left-3" : "right-3"
-                  )}>
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* Error Message */}
             <AnimatePresence mode="wait">
