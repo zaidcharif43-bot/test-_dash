@@ -22,6 +22,7 @@ const WORKFLOW_STEPS = [
 export function LiveWorkflowTracker() {
   const [activeStep, setActiveStep] = useState<number>(-1);
   const [status, setStatus] = useState<"idle" | "running" | "waiting_approval" | "finished" | "rejected">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Normalizer to align step number correctly based on final outcome
@@ -69,6 +70,7 @@ export function LiveWorkflowTracker() {
   // Action helper to simulate clicking Approve/Refuse
   const handleAction = async (action: "approved" | "rejected") => {
     try {
+      setError(null);
       // 1. Fetch latest draft_id from Google Sheet via our /api/posts route
       const postsRes = await fetch("/api/posts");
       const postsData = await postsRes.json();
@@ -77,8 +79,7 @@ export function LiveWorkflowTracker() {
       const draftId = latestPost?.draft_id_info || latestPost?.draft_id;
       
       if (!draftId) {
-        console.error("No active draft_id found in Google Sheets 'draft_post' tab!");
-        return;
+        throw new Error("Aucun ID de brouillon ('draft_id') actif trouvé dans les données Google Sheets.");
       }
 
       // 2. Set tracker to running/step 10 optimistically
@@ -95,8 +96,13 @@ export function LiveWorkflowTracker() {
       if (!result.success) {
         throw new Error(result.error || "Failed to trigger callback");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to trigger simulated Telegram callback:", err);
+      setError(err.message || "Une erreur inconnue est survenue.");
+      // Rollback status so the approval/refusal buttons reappear
+      await supabase.from("n8n_tracker").update({ status: "waiting_approval", current_step: 9 }).eq("id", 1);
+      setStatus("waiting_approval");
+      setActiveStep(9);
     }
   };
 
@@ -114,20 +120,9 @@ export function LiveWorkflowTracker() {
           </span>
         )}
         {status === "waiting_approval" && (
-          <div className="flex gap-2">
-            <button 
-              onClick={() => handleAction("approved")}
-              className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-xl transition-all border border-emerald-500/20 flex items-center gap-1"
-            >
-              <Check size={12} strokeWidth={3} /> Approve (Telegram)
-            </button>
-            <button 
-              onClick={() => handleAction("rejected")}
-              className="text-[11px] font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-xl transition-all border border-red-500/20 flex items-center gap-1"
-            >
-              <X size={12} strokeWidth={3} /> Refuse (Telegram)
-            </button>
-          </div>
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-purple-300 bg-purple-500/10 px-3 py-1.5 rounded-full border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.05)] animate-pulse">
+            <Clock className="h-3 w-3 text-purple-400" /> Action requise sur Telegram 📱
+          </span>
         )}
         {status === "finished" && (
           <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
@@ -140,6 +135,22 @@ export function LiveWorkflowTracker() {
           </span>
         )}
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 flex flex-col gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.05)]">
+          <div className="flex items-center gap-2 font-bold text-red-400">
+            <X size={14} className="flex-shrink-0" strokeWidth={3} />
+            <span>Erreur de déclenchement n8n</span>
+          </div>
+          <p className="text-gray-300 leading-relaxed font-medium">{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            className="text-[10px] text-red-400 hover:text-red-300 underline self-start mt-1 transition-all"
+          >
+            Masquer l'avertissement
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {WORKFLOW_STEPS.map((step, i) => {
@@ -201,6 +212,15 @@ export function LiveWorkflowTracker() {
                 </p>
                 {isCurrent && i < 9 && (
                   <p className="text-xs text-blue-400/70 mt-0.5 animate-pulse">Processing via n8n...</p>
+                )}
+                {isCurrent && i === 9 && (
+                  <p className="text-xs text-purple-300/85 mt-1.5 flex items-start gap-2 leading-relaxed bg-purple-500/5 border border-purple-500/10 p-2.5 rounded-lg shadow-sm">
+                    <span className="relative flex h-2 w-2 mt-1.5 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                    </span>
+                    <span>Veuillez ouvrir votre application <strong>Telegram</strong> et cliquer sur <strong>VALIDER</strong> ou <strong>REFUSER</strong> pour déclencher la publication.</span>
+                  </p>
                 )}
               </div>
             </motion.div>

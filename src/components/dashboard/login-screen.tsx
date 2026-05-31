@@ -16,7 +16,7 @@ import {
 import clsx from "clsx";
 import { supabase } from "@/lib/supabase";
 
-export type UserRole = "admin" | "manager" | "cm";
+export type UserRole = "admin" | "manager" | "client";
 
 export interface LoggedInUser {
   username: string;
@@ -106,7 +106,7 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
   // Registration expansion states
   const [isRegistering, setIsRegistering] = useState(false);
   const [fullName, setFullName] = useState("");
-  const selectedRole = "community_manager";
+  const selectedRole = "client";
 
   const t = (key: string) => {
     const langDict = loginTranslations[language] || loginTranslations["Français"];
@@ -142,8 +142,8 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         }
 
         // Map database enums to frontend routing privilege keys
-        let mappedRole: UserRole = "cm";
-        let mappedRoleLabel = "Community Manager";
+        let mappedRole: UserRole = "client";
+        let mappedRoleLabel = "Client";
 
         const dbRole = String(data.role).toLowerCase();
         
@@ -153,21 +153,12 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         } else if (dbRole === "manager") {
           mappedRole = "manager";
           mappedRoleLabel = "Manager";
-        } else if (dbRole === "community_manager") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Community Manager";
-        } else if (dbRole === "designer") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Designer";
-        } else if (dbRole === "commercial") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Commercial";
         } else if (dbRole === "client") {
-          mappedRole = "cm";
+          mappedRole = "client";
           mappedRoleLabel = "Client";
         } else {
-          mappedRole = "cm";
-          mappedRoleLabel = data.role || "Utilisateur";
+          mappedRole = "client";
+          mappedRoleLabel = "Client";
         }
 
         const userPayload: LoggedInUser = {
@@ -180,6 +171,7 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         
         // Securely cache locally
         localStorage.setItem("dashboard-auth-user", JSON.stringify(userPayload));
+        document.cookie = `dashboard-auth-user=${encodeURIComponent(JSON.stringify(userPayload))}; path=/; max-age=86400; SameSite=Lax`;
         onLoginSuccess(userPayload);
       } else {
         setError(t("errorMsg"));
@@ -199,17 +191,66 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!fullName.trim()) return;
+
+    const nameTrimmed = fullName.trim();
+    const emailTrimmed = username.trim().toLowerCase();
+    const passTrimmed = password.trim();
+
+    // 1. Validate full name
+    if (!nameTrimmed) {
+      setError(
+        language === "العربية" ? "الاسم الكامل مطلوب." :
+        language === "English" ? "Full name is required." :
+        "Le nom complet est obligatoire."
+      );
+      return;
+    }
+    if (nameTrimmed.length < 2) {
+      setError(
+        language === "العربية" ? "يجب أن يتكون الاسم الكامل من حرفين على الأقل." :
+        language === "English" ? "Full name must be at least 2 characters." :
+        "Le nom complet doit contenir au moins 2 caractères."
+      );
+      return;
+    }
+
+    // 2. Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setError(
+        language === "العربية" ? "صيغة البريد الإلكتروني غير صالحة." :
+        language === "English" ? "Invalid email address format." :
+        "Format de l'adresse email invalide."
+      );
+      return;
+    }
+
+    // 3. Validate password strength
+    if (!passTrimmed) {
+      setError(
+        language === "العربية" ? "كلمة المرور مطلوبة." :
+        language === "English" ? "Password is required." :
+        "Le mot de passe est obligatoire."
+      );
+      return;
+    }
+    if (passTrimmed.length < 6) {
+      setError(
+        language === "العربية" ? "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل." :
+        language === "English" ? "Password must be at least 6 characters." :
+        "Le mot de passe doit contenir au moins 6 caractères."
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const sanitizedEmail = username.trim().toLowerCase();
-
       // Check if email already exists
       const { data: existingUser, error: checkError } = await supabase
         .from("users")
         .select("id")
-        .eq("email", sanitizedEmail)
+        .eq("email", emailTrimmed)
         .maybeSingle();
 
       if (checkError) throw new Error(checkError.message);
@@ -225,9 +266,9 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         .from("users")
         .insert([
           {
-            full_name: fullName.trim(),
-            email: sanitizedEmail,
-            password: password.trim(),
+            full_name: nameTrimmed,
+            email: emailTrimmed,
+            password: passTrimmed,
             role: selectedRole,
             is_active: true
           }
@@ -238,8 +279,8 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
       if (insertError) throw new Error(insertError.message);
 
       if (newUser) {
-        let mappedRole: UserRole = "cm";
-        let mappedRoleLabel = "Community Manager";
+        let mappedRole: UserRole = "client";
+        let mappedRoleLabel = "Client";
         const dbRole = String(newUser.role).toLowerCase();
         
         if (dbRole === "admin") {
@@ -248,17 +289,8 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         } else if (dbRole === "manager") {
           mappedRole = "manager";
           mappedRoleLabel = "Manager";
-        } else if (dbRole === "community_manager") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Community Manager";
-        } else if (dbRole === "designer") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Designer";
-        } else if (dbRole === "commercial") {
-          mappedRole = "cm";
-          mappedRoleLabel = "Commercial";
         } else if (dbRole === "client") {
-          mappedRole = "cm";
+          mappedRole = "client";
           mappedRoleLabel = "Client";
         }
 
@@ -271,15 +303,23 @@ export function LoginScreen({ theme, onLoginSuccess, language, setLanguage }: Lo
         };
         
         localStorage.setItem("dashboard-auth-user", JSON.stringify(userPayload));
+        document.cookie = `dashboard-auth-user=${encodeURIComponent(JSON.stringify(userPayload))}; path=/; max-age=86400; SameSite=Lax`;
         onLoginSuccess(userPayload);
       }
     } catch (err: any) {
       console.error("Register DB Error:", err);
-      setError(language === "العربية" 
-        ? "حدث خطأ أثناء إنشاء الحساب." 
-        : language === "English" 
-        ? "An error occurred during registration." 
-        : "Une erreur est survenue lors de l'inscription.");
+      const dbErrorMessage = err.message || err.details || "";
+      let userFriendlyError = "";
+      
+      if (language === "العربية") {
+        userFriendlyError = `حدث خطأ أثناء إنشاء الحساب: ${dbErrorMessage || "الرجاء المحاولة مرة أخرى."}`;
+      } else if (language === "English") {
+        userFriendlyError = `An error occurred during registration: ${dbErrorMessage || "Please try again."}`;
+      } else {
+        userFriendlyError = `Une erreur est survenue lors de l'inscription : ${dbErrorMessage || "Veuillez réessayer."}`;
+      }
+      
+      setError(userFriendlyError);
     } finally {
       setIsSubmitting(false);
     }

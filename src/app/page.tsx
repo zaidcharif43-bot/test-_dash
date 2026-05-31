@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  EyeOff,
   Heart,
   MessageCircle,
   Share2,
@@ -52,6 +53,10 @@ import {
   CornerDownRight,
   LogOut,
   Trash2,
+  Save,
+  Trophy,
+  Crown,
+  Flame,
 } from "lucide-react";
 
 const Instagram = ({ className }: { className?: string }) => (
@@ -192,7 +197,6 @@ const sidebarItems: { label: ModuleKey; icon: React.ComponentType<{ className?: 
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "Publications", icon: Megaphone },
   { label: "Calendrier editorial", icon: CalendarDays },
-  { label: "Clients", icon: UserRound },
   { label: "Add Publication", icon: WandSparkles },
   { label: "Taches", icon: ListTodo },
   { label: "Equipe", icon: Users },
@@ -324,11 +328,11 @@ export default function Home() {
   const [metaIgId, setMetaIgId] = useState("");
   const [googleSheetId, setGoogleSheetId] = useState("");
 
-  // Intermediate form states for Settings
   const [inputToken, setInputToken] = useState("");
   const [inputPageId, setInputPageId] = useState("");
   const [inputIgId, setInputIgId] = useState("");
   const [inputSheetId, setInputSheetId] = useState("");
+  const [showMetaToken, setShowMetaToken] = useState(false);
 
   const t = (key: string, defaultText: string) => {
     const cleanKey = key.toLowerCase()
@@ -353,6 +357,9 @@ export default function Home() {
   const [isCustomService, setIsCustomService] = useState(false);
   const [newPubDescription, setNewPubDescription] = useState("");
   const [newPubHashtags, setNewPubHashtags] = useState("");
+  const [newPubCustomImage, setNewPubCustomImage] = useState("");
+  const [imageInputMode, setImageInputMode] = useState<"link" | "upload">("link");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [newPubStatus, setNewPubStatus] = useState("Pending");
   const [isSubmittingPub, setIsSubmittingPub] = useState(false);
   const [taskColumns, setTaskColumns] = useState<Record<string, DBTask[]>>({
@@ -396,11 +403,11 @@ export default function Home() {
   const visibleSidebarItems = useMemo(() => {
     if (!currentUser) return [];
     return sidebarItems.filter((item) => {
-      if (currentUser.role === "cm") {
-        return ["Dashboard", "Publications", "Calendrier editorial", "Messages", "Notifications", "Parametres"].includes(item.label);
+      if (currentUser.role === "client") {
+        return ["Dashboard", "Publications", "Calendrier editorial", "Messages", "Notifications"].includes(item.label);
       }
       if (currentUser.role === "manager") {
-        return item.label !== "Admin";
+        return item.label !== "Admin" && item.label !== "Parametres" && item.label !== "Equipe";
       }
       return true; // admin
     });
@@ -800,7 +807,43 @@ export default function Home() {
     );
   };
 
-  // Load configuration from localStorage on mount
+  // Synchronize activeModule with browser URL path to support route bookmarks and dynamic routing
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path === "/publications") setActiveModule("Publications");
+      else if (path === "/calendar") setActiveModule("Calendrier editorial");
+      else if (path === "/add-publication") setActiveModule("Add Publication");
+      else if (path === "/tasks") setActiveModule("Taches");
+      else if (path === "/team") setActiveModule("Equipe");
+      else if (path === "/messages") setActiveModule("Messages");
+      else if (path === "/notifications") setActiveModule("Notifications");
+      else if (path === "/settings") setActiveModule("Parametres");
+      else if (path === "/admin") setActiveModule("Admin");
+      else setActiveModule("Dashboard");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let targetPath = "/";
+      if (activeModule === "Publications") targetPath = "/publications";
+      else if (activeModule === "Calendrier editorial") targetPath = "/calendar";
+      else if (activeModule === "Add Publication") targetPath = "/add-publication";
+      else if (activeModule === "Taches") targetPath = "/tasks";
+      else if (activeModule === "Equipe") targetPath = "/team";
+      else if (activeModule === "Messages") targetPath = "/messages";
+      else if (activeModule === "Notifications") targetPath = "/notifications";
+      else if (activeModule === "Parametres") targetPath = "/settings";
+      else if (activeModule === "Admin") targetPath = "/admin";
+      
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, "", targetPath);
+      }
+    }
+  }, [activeModule]);
+
+  // Load configuration from database / env and fallback to localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("dashboard-theme") as "light" | "dark";
@@ -808,21 +851,6 @@ export default function Home() {
 
       const savedLanguage = localStorage.getItem("dashboard-language") || "Français";
       setLanguage(savedLanguage);
-
-      const savedToken = localStorage.getItem("meta-access-token") || "";
-      const savedPageId = localStorage.getItem("meta-page-id") || "";
-      const savedIgId = localStorage.getItem("meta-instagram-id") || "";
-      const savedGoogleSheetId = localStorage.getItem("google-sheet-id") || "";
-      
-      setMetaToken(savedToken);
-      setMetaPageId(savedPageId);
-      setMetaIgId(savedIgId);
-      setGoogleSheetId(savedGoogleSheetId);
-
-      setInputToken(savedToken);
-      setInputPageId(savedPageId);
-      setInputIgId(savedIgId);
-      setInputSheetId(savedGoogleSheetId);
 
       const savedAuth = localStorage.getItem("dashboard-auth-user");
       if (savedAuth) {
@@ -833,6 +861,56 @@ export default function Home() {
         }
       }
     }
+
+    async function fetchSavedCredentials() {
+      try {
+        const res = await fetch("/api/save-credentials");
+        const data = await res.json();
+        if (data && !data.error) {
+          let tokenToUse = data.token || "";
+          
+          // Smart local resolution: if the database token is masked, restore the full token from localStorage if the prefixes match
+          if (tokenToUse.endsWith("...") && typeof window !== "undefined") {
+            const localToken = localStorage.getItem("meta-access-token") || "";
+            const prefix = tokenToUse.replace("...", "");
+            if (prefix && localToken.startsWith(prefix)) {
+              tokenToUse = localToken;
+            }
+          }
+
+          setInputToken(tokenToUse);
+          setInputPageId(data.pageId || "");
+          setInputIgId(data.igId || "");
+          setInputSheetId(data.sheetId || "");
+
+          setMetaToken(tokenToUse);
+          setMetaPageId(data.pageId || "");
+          setMetaIgId(data.igId || "");
+          setGoogleSheetId(data.sheetId || "");
+        } else {
+          throw new Error("Failed to load configs from database");
+        }
+      } catch (err) {
+        console.warn("Loading configs from localStorage fallback:", err);
+        if (typeof window !== "undefined") {
+          const savedToken = localStorage.getItem("meta-access-token") || "";
+          const savedPageId = localStorage.getItem("meta-page-id") || "";
+          const savedIgId = localStorage.getItem("meta-instagram-id") || "";
+          const savedGoogleSheetId = localStorage.getItem("google-sheet-id") || "";
+          
+          setMetaToken(savedToken);
+          setMetaPageId(savedPageId);
+          setMetaIgId(savedIgId);
+          setGoogleSheetId(savedGoogleSheetId);
+
+          setInputToken(savedToken);
+          setInputPageId(savedPageId);
+          setInputIgId(savedIgId);
+          setInputSheetId(savedGoogleSheetId);
+        }
+      }
+    }
+    fetchSavedCredentials();
   }, []);
 
   // Save theme to localStorage
@@ -1296,7 +1374,7 @@ export default function Home() {
           if (!exists) {
             mergedComments.push({
               id: reply.id,
-              from: reply.sender_name || (currentUser?.name || "Community Manager (Moi)"),
+              from: reply.sender_name || (currentUser?.name || "Équipe (Moi)"),
               text: reply.body,
               date: new Date(reply.received_at).toISOString().substring(0, 16).replace("T", " "),
               isReply: true,
@@ -1317,7 +1395,17 @@ export default function Home() {
   const dynamicTeam = useMemo(() => {
     const allTasks = Object.values(taskColumns).flat();
 
-    return teamMembers.map((member) => {
+    // Filter team members based on role privileges
+    const filteredMembers = teamMembers.filter((member) => {
+      if (currentUser?.role === "manager") {
+        // Manager can see ONLY client accounts, and NOT themselves either
+        const isSelf = member.email.toLowerCase() === currentUser.username.toLowerCase();
+        return member.role === "client" && !isSelf;
+      }
+      return true; // Admin can see all active team members
+    });
+
+    return filteredMembers.map((member) => {
       const memberTasks = allTasks.filter(t => t.assigned_to === member.id);
       const totalCount = memberTasks.length;
       const completedCount = memberTasks.filter(t => t.status === "done").length;
@@ -1329,11 +1417,9 @@ export default function Home() {
       }
 
       let displayRole = member.role;
-      if (member.role === "community_manager") displayRole = "Community Manager";
-      else if (member.role === "designer") displayRole = "Designer";
-      else if (member.role === "commercial") displayRole = "Commercial";
-      else if (member.role === "client") displayRole = "Client";
+      if (member.role === "client") displayRole = "Client";
       else if (member.role === "manager") displayRole = "Manager";
+      else if (member.role === "admin") displayRole = "Administrateur";
 
       return {
         id: member.id,
@@ -1422,7 +1508,7 @@ export default function Home() {
     // Poll Meta API quietly
     const interval = setInterval(loadMeta, 30000);
     return () => clearInterval(interval);
-  }, [metaToken, metaPageId, metaIgId, googleSheetId]);
+  }, [currentUser, metaToken, metaPageId, metaIgId, googleSheetId]);
 
   useEffect(() => {
     const generator = window.setInterval(() => {
@@ -1478,15 +1564,10 @@ export default function Home() {
   );
 
   const teamRoleOptions = useMemo(() => {
-    const baseRoles = ["admin", "manager", "designer", "commercial", "client", "community_manager"];
-    const dataRoles = teamMembers.map((member) => String(member.role || "").toLowerCase()).filter(Boolean);
-    return Array.from(new Set([...baseRoles, ...dataRoles]));
-  }, [teamMembers]);
+    return ["admin", "manager", "client"];
+  }, []);
 
   const labelForRole = (role: string) => {
-    if (role === "community_manager") return "Community Manager";
-    if (role === "designer") return "Designer";
-    if (role === "commercial") return "Commercial";
     if (role === "client") return "Client";
     if (role === "manager") return "Manager";
     if (role === "admin") return "Admin";
@@ -1648,6 +1729,43 @@ export default function Home() {
     setWorkflows((prev) => prev.map((wf) => (wf.id === id ? { ...wf, active: !wf.active } : wf)));
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "ml_default");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dmnkmwdmu/image/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Cloudinary upload failed");
+
+      const data = await res.json();
+      if (data.secure_url) {
+        setNewPubCustomImage(data.secure_url);
+        setToast({
+          message: language === "العربية" ? "تم تحميل الصورة بنجاح!" : language === "English" ? "Image uploaded successfully!" : "Image téléchargée avec succès !",
+          type: "success"
+        });
+      }
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      setToast({
+        message: language === "العربية" ? "فشل تحميل الصورة" : language === "English" ? "Image upload failed" : "Échec du téléchargement de l'image",
+        type: "error"
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleCreatePublication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPubDescription.trim()) return;
@@ -1680,6 +1798,7 @@ export default function Home() {
         Service: finalService,
         Description: newPubDescription.trim(),
         Hashtags: newPubHashtags.trim(),
+        custom_image_url: newPubCustomImage.trim() || "false",
         Status: newPubStatus,
         PublishedAt: "",
         row_number: rowNum,
@@ -1736,6 +1855,7 @@ export default function Home() {
       setNewPubService("");
       setNewPubDescription("");
       setNewPubHashtags("");
+      setNewPubCustomImage("");
     } catch (err: any) {
       console.error("Failed to create publication:", err);
       setToast({
@@ -2002,7 +2122,7 @@ export default function Home() {
             if (commentExists) {
               const newReply = {
                 id: data.id || `reply_${Date.now()}`,
-                from: currentUser?.name || "Community Manager (Moi)",
+                from: currentUser?.name || "Équipe (Moi)",
                 text: messageText,
                 date: new Date().toISOString().substring(0, 16).replace("T", " "),
                 isReply: true,
@@ -2023,7 +2143,7 @@ export default function Home() {
             {
               platform: platform,
               body: messageText,
-              sender_name: currentUser?.name || "Community Manager (Moi)",
+              sender_name: currentUser?.name || "Équipe (Moi)",
               sender_id: currentUser?.username || "admin",
               is_read: true,
               external_msg_id: commentId,
@@ -2115,25 +2235,67 @@ export default function Home() {
       console.error("Failed to mark notifications as read in Supabase:", err);
     }
   };
-
-  const handleSaveCredentials = (e: React.FormEvent) => {
+  const handleSaveCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     if (typeof window !== "undefined") {
-      localStorage.setItem("meta-access-token", inputToken.trim());
-      localStorage.setItem("meta-page-id", inputPageId.trim());
-      localStorage.setItem("meta-instagram-id", inputIgId.trim());
-      localStorage.setItem("google-sheet-id", inputSheetId.trim());
+      const cleanToken = inputToken.trim();
+      const cleanPageId = inputPageId.trim();
+      const cleanIgId = inputIgId.trim();
+      const cleanSheetId = inputSheetId.trim();
 
-      setMetaToken(inputToken.trim());
-      setMetaPageId(inputPageId.trim());
-      setMetaIgId(inputIgId.trim());
-      setGoogleSheetId(inputSheetId.trim());
+      localStorage.setItem("meta-access-token", cleanToken);
+      localStorage.setItem("meta-page-id", cleanPageId);
+      localStorage.setItem("meta-instagram-id", cleanIgId);
+      localStorage.setItem("google-sheet-id", cleanSheetId);
 
-      createNotificationInDb(
-        "Configuration sauvegardée",
-        "Identifiants API mis à jour et sauvegardés !",
-        "Interne"
-      );
+      setMetaToken(cleanToken);
+      setMetaPageId(cleanPageId);
+      setMetaIgId(cleanIgId);
+      setGoogleSheetId(cleanSheetId);
+
+      try {
+        const res = await fetch("/api/save-credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: cleanToken,
+            pageId: cleanPageId,
+            igId: cleanIgId,
+            sheetId: cleanSheetId
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          createNotificationInDb(
+            "Configuration sauvegardée",
+            data.localEnvBackup
+              ? "API synchronisée sur Supabase & sauvegardée localement dans le fichier .env !"
+              : "API synchronisée en temps réel sur Supabase (Production Vercel active) !",
+            "Interne"
+          );
+          setToast({
+            message: data.localEnvBackup
+              ? "Identifiants sauvegardés dans la base de données & synchronisés localement dans le .env !"
+              : "Identifiants sauvegardés avec succès dans la base de données Supabase !",
+            type: "success"
+          });
+          setTimeout(() => setToast(null), 4000);
+        } else {
+          throw new Error(data.error || "Echec de la sauvegarde");
+        }
+      } catch (err) {
+        console.error("Error saving credentials to database:", err);
+        createNotificationInDb(
+          "Erreur de sauvegarde",
+          "Les clés ont été appliquées localement mais la base de données n'a pas pu être mise à jour.",
+          "Interne"
+        );
+        setToast({
+          message: "Erreur de sauvegarde : Impossible de mettre à jour les clés dans la base de données.",
+          type: "error"
+        });
+        setTimeout(() => setToast(null), 4000);
+      }
     }
   };
 
@@ -2744,6 +2906,267 @@ export default function Home() {
                 </div>
               );
             })()}
+
+            {/* ══════════════════════════════════════════════════════ */}
+            {/* ══════ TOP PUBLICATIONS — Per Platform Top 3 ══════ */}
+            {/* ══════════════════════════════════════════════════════ */}
+            {(() => {
+              const scorePost = (p: Post) => ({
+                ...p,
+                engagementScore: (p.views || 0) * 3 + (p.likes || 0) * 2 + (p.comments || 0) * 5 + (p.shares || 0) * 4 + (p.impressions || 0),
+              });
+
+              const fbTop = [...posts].filter(p => p.platform === "Facebook").map(scorePost).sort((a, b) => b.engagementScore - a.engagementScore).slice(0, 3);
+              const igTop = [...posts].filter(p => p.platform === "Instagram").map(scorePost).sort((a, b) => b.engagementScore - a.engagementScore).slice(0, 3);
+
+              if (fbTop.length === 0 && igTop.length === 0) return null;
+
+              const formatNum = (n: number) => {
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+                if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+                return String(n);
+              };
+
+              type ScoredPost = Post & { engagementScore: number };
+
+              const renderPlatformSection = (
+                platformPosts: ScoredPost[],
+                platform: "Facebook" | "Instagram"
+              ) => {
+                if (platformPosts.length === 0) return null;
+                const isFb = platform === "Facebook";
+                const topPost = platformPosts[0];
+                const runnersUp = platformPosts.slice(1);
+                const maxScore = topPost.engagementScore || 1;
+
+                const PlatIcon = isFb ? Globe : Instagram;
+
+                const heroGradient = theme === "dark"
+                  ? isFb
+                    ? "border-blue-500/30 bg-gradient-to-br from-blue-950/60 via-[#071225] to-blue-900/20 hover:border-blue-400/50 shadow-lg shadow-blue-500/5"
+                    : "border-pink-500/30 bg-gradient-to-br from-pink-950/50 via-[#071225] to-purple-900/20 hover:border-pink-400/50 shadow-lg shadow-pink-500/5"
+                  : isFb
+                    ? "border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/50 hover:border-blue-300 shadow-md shadow-blue-100/50"
+                    : "border-pink-200 bg-gradient-to-br from-pink-50/80 via-white to-purple-50/50 hover:border-pink-300 shadow-md shadow-pink-100/50";
+
+                const badgeGradient = isFb
+                  ? "from-blue-500 to-blue-600"
+                  : "from-pink-500 via-purple-500 to-pink-600";
+
+                const badgeShadow = isFb ? "shadow-blue-500/40" : "shadow-pink-500/40";
+
+                const barGradient = isFb
+                  ? "bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-300"
+                  : "bg-gradient-to-r from-pink-500 via-purple-400 to-pink-300";
+
+                return (
+                  <div className="space-y-4">
+                    {/* Platform Header */}
+                    <div className="flex items-center gap-2.5">
+                      <div className={clsx(
+                        "flex h-9 w-9 items-center justify-center rounded-xl border shadow-md",
+                        theme === "dark"
+                          ? isFb ? "border-blue-400/30 bg-blue-600/20 shadow-blue-500/20" : "border-pink-400/30 bg-gradient-to-br from-pink-600/20 to-purple-600/20 shadow-pink-500/20"
+                          : isFb ? "border-blue-200 bg-blue-100 shadow-blue-200/50" : "border-pink-200 bg-gradient-to-br from-pink-100 to-purple-100 shadow-pink-200/50"
+                      )}>
+                        <PlatIcon className={clsx("h-4 w-4", theme === "dark" ? isFb ? "text-blue-400" : "text-pink-400" : isFb ? "text-blue-600" : "text-pink-600")} />
+                      </div>
+                      <div>
+                        <p className={clsx("text-sm font-bold", theme === "dark" ? "text-white" : "text-slate-800")}>{platform}</p>
+                        <p className={clsx("text-[10px]", theme === "dark" ? "text-gray-500" : "text-slate-400")}>Top {platformPosts.length} publications</p>
+                      </div>
+                    </div>
+
+                    {/* #1 Hero Card */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5 }}
+                      className={clsx(
+                        "relative overflow-hidden rounded-2xl border p-0 transition-all duration-500 group hover:shadow-2xl",
+                        heroGradient
+                      )}
+                    >
+                      <div className={clsx(
+                        "absolute -top-14 -right-14 w-36 h-36 rounded-full blur-3xl opacity-30 group-hover:opacity-60 transition-opacity pointer-events-none",
+                        isFb ? "bg-blue-500/20" : "bg-pink-500/20"
+                      )} />
+
+                      <div className="relative aspect-[16/9] overflow-hidden">
+                        {topPost.image ? (
+                          <img
+                            src={topPost.image}
+                            alt={topPost.title?.substring(0, 50)}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          />
+                        ) : (
+                          <div className={clsx("w-full h-full flex items-center justify-center", theme === "dark" ? "bg-slate-800" : "bg-slate-100")}>
+                            <Megaphone className="w-10 h-10 text-gray-500" />
+                          </div>
+                        )}
+                        <div className={clsx("absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-gradient-to-r px-2.5 py-1 shadow-lg", badgeGradient, badgeShadow)}>
+                          <Crown className="w-3.5 h-3.5 text-white" />
+                          <span className="text-[10px] font-black text-white uppercase tracking-wider">#1 Top</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-3">
+                        <p className={clsx("text-xs font-bold leading-relaxed line-clamp-2", theme === "dark" ? "text-white" : "text-slate-800")}>
+                          {topPost.title}
+                        </p>
+                        <p className={clsx("text-[10px] font-medium", theme === "dark" ? "text-gray-500" : "text-slate-400")}>
+                          {topPost.date} · {topPost.dateTime}
+                        </p>
+
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { label: "Vues", value: topPost.views || 0, icon: Eye, color: theme === "dark" ? "text-cyan-400" : "text-cyan-600" },
+                            { label: "Likes", value: topPost.likes || 0, icon: Heart, color: theme === "dark" ? "text-rose-400" : "text-rose-500" },
+                            { label: "Comments", value: topPost.comments || 0, icon: MessageCircle, color: theme === "dark" ? "text-blue-400" : "text-blue-600" },
+                            { label: "Partages", value: topPost.shares || 0, icon: Share2, color: theme === "dark" ? "text-emerald-400" : "text-emerald-600" },
+                          ].map((m, idx) => (
+                            <div key={idx} className={clsx(
+                              "rounded-lg border px-1.5 py-2 text-center transition-all hover:scale-[1.03]",
+                              theme === "dark" ? "border-white/5 bg-white/[0.03]" : isFb ? "border-blue-100 bg-blue-50/40" : "border-pink-100 bg-pink-50/40"
+                            )}>
+                              <m.icon className={clsx("w-3 h-3 mx-auto mb-0.5", m.color)} />
+                              <p className={clsx("text-[8px] font-semibold uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-slate-400")}>{m.label}</p>
+                              <p className={clsx("text-sm font-black mt-0.5 tabular-nums", theme === "dark" ? "text-white" : "text-slate-800")}>{formatNum(m.value)}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={clsx("text-[8px] font-bold uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-slate-400")}>Score</span>
+                            <span className={clsx("text-[10px] font-black tabular-nums", theme === "dark" ? isFb ? "text-blue-400" : "text-pink-400" : isFb ? "text-blue-600" : "text-pink-600")}>{topPost.engagementScore.toLocaleString()}</span>
+                          </div>
+                          <div className={clsx("h-1.5 rounded-full overflow-hidden", theme === "dark" ? "bg-white/5" : "bg-slate-200")}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: "100%" }}
+                              transition={{ duration: 1.2, ease: "easeOut" }}
+                              className={clsx("h-full rounded-full shadow-sm", barGradient)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* #2 and #3 Runners Up */}
+                    {runnersUp.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {runnersUp.map((post, idx) => {
+                          const rank = idx + 2;
+                          const pctBar = Math.round((post.engagementScore / maxScore) * 100);
+                          return (
+                            <motion.div
+                              key={post.id}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.12 + 0.3 }}
+                              className={clsx(
+                                "relative overflow-hidden rounded-xl border p-0 transition-all duration-300 group hover:shadow-xl hover:-translate-y-0.5",
+                                theme === "dark"
+                                  ? isFb ? "border-blue-500/15 bg-gradient-to-br from-blue-950/40 to-[#071225] hover:border-blue-400/30" : "border-pink-500/15 bg-gradient-to-br from-pink-950/30 to-[#071225] hover:border-pink-400/30"
+                                  : "border-slate-200 bg-white hover:border-slate-300 shadow-sm"
+                              )}
+                            >
+                              <div className="relative aspect-[16/9] overflow-hidden">
+                                {post.image ? (
+                                  <img src={post.image} alt={post.title?.substring(0, 40)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                ) : (
+                                  <div className={clsx("w-full h-full flex items-center justify-center", theme === "dark" ? "bg-slate-800/60" : "bg-slate-100")}>
+                                    <Megaphone className="w-6 h-6 text-gray-500" />
+                                  </div>
+                                )}
+                                <div className={clsx(
+                                  "absolute top-2 left-2 flex items-center justify-center h-6 w-6 rounded-full border text-[10px] font-black",
+                                  rank === 2
+                                    ? "bg-gradient-to-br from-slate-300 to-slate-400 border-white/40 text-slate-800 shadow-md"
+                                    : "bg-gradient-to-br from-amber-700 to-amber-800 border-amber-500/40 text-amber-100 shadow-md"
+                                )}>
+                                  #{rank}
+                                </div>
+                              </div>
+                              <div className="p-2.5 space-y-2">
+                                <p className={clsx("text-[10px] font-semibold leading-snug line-clamp-2", theme === "dark" ? "text-gray-200" : "text-slate-700")}>
+                                  {post.title}
+                                </p>
+                                <div className="flex items-center gap-2.5 text-[9px]">
+                                  <span className={clsx("flex items-center gap-0.5 font-bold", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>
+                                    <Eye className="w-2.5 h-2.5" /> {formatNum(post.views || 0)}
+                                  </span>
+                                  <span className={clsx("flex items-center gap-0.5 font-bold", theme === "dark" ? "text-rose-400" : "text-rose-500")}>
+                                    <Heart className="w-2.5 h-2.5" /> {formatNum(post.likes || 0)}
+                                  </span>
+                                  <span className={clsx("flex items-center gap-0.5 font-bold", theme === "dark" ? "text-blue-400" : "text-blue-600")}>
+                                    <MessageCircle className="w-2.5 h-2.5" /> {post.comments || 0}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className={clsx("h-1 rounded-full overflow-hidden", theme === "dark" ? "bg-white/5" : "bg-slate-200")}>
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pctBar}%` }}
+                                      transition={{ duration: 0.8, delay: idx * 0.15 + 0.5, ease: "easeOut" }}
+                                      className={clsx("h-full rounded-full", isFb ? "bg-gradient-to-r from-blue-500 to-blue-400" : "bg-gradient-to-r from-pink-500 to-purple-400")}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-5">
+                  {/* Section Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={clsx(
+                        "flex h-10 w-10 items-center justify-center rounded-xl border shadow-lg",
+                        theme === "dark"
+                          ? "border-[#D4A017]/30 bg-gradient-to-br from-[#D4A017]/20 to-amber-600/10 shadow-[#D4A017]/20"
+                          : "border-amber-300 bg-gradient-to-br from-amber-100 to-yellow-50 shadow-amber-200/50"
+                      )}>
+                        <Trophy className={clsx("h-5 w-5", theme === "dark" ? "text-[#D4A017]" : "text-amber-600")} />
+                      </div>
+                      <div>
+                        <h3 className={clsx("text-lg font-bold", theme === "dark" ? "text-white" : "text-slate-800")}>
+                          Top Publications
+                        </h3>
+                        <p className={clsx("text-[11px]", theme === "dark" ? "text-gray-400" : "text-slate-500")}>
+                          Top 3 par plateforme · Classées par engagement
+                        </p>
+                      </div>
+                    </div>
+                    <span className={clsx(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+                      theme === "dark"
+                        ? "border-[#D4A017]/30 bg-[#D4A017]/10 text-[#D4A017]"
+                        : "border-amber-300 bg-amber-50 text-amber-700"
+                    )}>
+                      <Flame className="w-3 h-3" />
+                      {fbTop.length + igTop.length} meilleures
+                    </span>
+                  </div>
+
+                  {/* Dual Platform Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {renderPlatformSection(fbTop, "Facebook")}
+                    {renderPlatformSection(igTop, "Instagram")}
+                  </div>
+                </div>
+              );
+            })()}
+
+
           </div>
         </PageTransition>
       );
@@ -2764,7 +3187,7 @@ export default function Home() {
                 <div className="mt-4 space-y-4">
                   <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
                     <p className="text-sm text-blue-200 font-medium mb-3">Generate AI-Powered Content Instantly</p>
-                    <GenerateButton />
+                    <GenerateButton disabled={currentUser?.role !== "admin"} />
                   </div>
                 </div>
               </GlassCard>
@@ -3041,80 +3464,6 @@ export default function Home() {
       );
     }
 
-    if (activeModule === "Clients") {
-      return (
-        <PageTransition moduleKey="clients">
-          <div className="space-y-6">
-            <GlassCard>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Gestion clients</h3>
-                  <p className="mt-1 text-sm text-blue-200">Suivi complet — réseaux, campagnes, historique</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    value={clientsFilter}
-                    onChange={(e) => setClientsFilter(e.target.value)}
-                    placeholder="Rechercher client..."
-                    className={clsx(
-                      "rounded-xl border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
-                      theme === "dark"
-                        ? "border-white/10 bg-white/5 text-white placeholder-gray-400 focus:bg-white/8"
-                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
-                    )}
-                  />
-                  <GlassBtn
-                    onClick={() => setIsClientModalOpen(true)}
-                    variant="primary"
-                    size="sm"
-                    className="flex items-center gap-1.5 shadow-lg"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {language === "العربية" ? "عميل جديد" : language === "English" ? "New Client" : "Nouveau client"}
-                  </GlassBtn>
-                </div>
-              </div>
-            </GlassCard>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {filteredClients.length === 0 ? (
-                <GlassCard className="md:col-span-2 xl:col-span-3">
-                  <PremiumEmptyState
-                    icon={Users}
-                    tone="emerald"
-                    title="Aucun client"
-                    description="Connectez la base de données pour charger les clients."
-                    note="La liste apparaîtra ici dès la synchronisation."
-                  />
-                </GlassCard>
-              ) : (
-                filteredClients.map((client, i) => (
-                  <motion.div
-                    key={client.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/8 hover:border-white/20 transition"
-                  >
-                    <p className="font-semibold text-white">{client.company}</p>
-                    <p className="text-xs text-gray-400 mt-1">Responsable: N/A</p>
-                    <p className="text-xs text-gray-400">Réseaux: {client.networks}</p>
-                    <p className="text-xs text-gray-400">Campagnes: {client.campaigns}</p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="rounded-full bg-green-500/20 px-2.5 py-1 text-xs text-green-300">{client.status}</span>
-                      <GlassBtn variant="subtle" size="sm">Voir détails</GlassBtn>
-                    </div>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </div>
-        </PageTransition>
-      );
-    }
-
-
-
     if (activeModule === "Add Publication") {
       return (
         <PageTransition moduleKey="workflows">
@@ -3203,6 +3552,113 @@ export default function Home() {
                     </div>
 
                     <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className={clsx(
+                          "block text-xs font-bold uppercase tracking-wider",
+                          theme === "dark" ? "text-gray-400" : "text-slate-500"
+                        )}>
+                          {language === "العربية" ? "صورة مخصصة (اختياري)" : language === "English" ? "Custom Image (Optional)" : "Image personnalisée (Optionnel)"}
+                        </label>
+                        
+                        {/* Selector Tabs */}
+                        <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 text-[10px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => setImageInputMode("link")}
+                            className={clsx(
+                              "px-2.5 py-1 rounded-lg transition-all",
+                              imageInputMode === "link"
+                                ? "bg-[#D4A017] text-slate-950"
+                                : "text-gray-400 hover:text-white"
+                            )}
+                          >
+                            {language === "العربية" ? "رابط" : language === "English" ? "Link" : "Lien"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImageInputMode("upload")}
+                            className={clsx(
+                              "px-2.5 py-1 rounded-lg transition-all",
+                              imageInputMode === "upload"
+                                ? "bg-[#D4A017] text-slate-950"
+                                : "text-gray-400 hover:text-white"
+                            )}
+                          >
+                            {language === "العربية" ? "تحميل" : language === "English" ? "Upload" : "Télécharger"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {imageInputMode === "link" ? (
+                        <input
+                          type="text"
+                          value={newPubCustomImage}
+                          onChange={(e) => setNewPubCustomImage(e.target.value)}
+                          placeholder="https://example.com/my-image.jpg"
+                          className={clsx(
+                            "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                            theme === "dark"
+                              ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                              : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                          )}
+                        />
+                      ) : (
+                        <div className={clsx(
+                          "relative rounded-xl border p-4 text-center transition-all flex flex-col items-center justify-center min-h-[110px] cursor-pointer hover:border-[#D4A017]/40",
+                          theme === "dark" ? "border-white/10 bg-white/5" : "border-slate-200 bg-black/5"
+                        )}>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                            disabled={isUploadingImage}
+                          />
+                          {isUploadingImage ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-5 h-5 border-2 border-[#D4A017] border-t-transparent rounded-full animate-spin" />
+                              <p className="text-[10px] text-[#D4A017] font-bold">
+                                {language === "العربية" ? "جاري الرفع..." : language === "English" ? "Uploading..." : "Téléchargement..."}
+                              </p>
+                            </div>
+                          ) : newPubCustomImage ? (
+                            <div className="flex items-center gap-3 w-full">
+                              <img
+                                src={newPubCustomImage}
+                                alt="Custom upload preview"
+                                className="w-14 h-14 rounded-lg object-cover border border-[#D4A017]/30 shadow-md shadow-[#D4A017]/5"
+                              />
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                  <span>🟢</span>
+                                  {language === "العربية" ? "تم الرفع بنجاح" : language === "English" ? "Uploaded successfully" : "Téléchargé avec succès"}
+                                </p>
+                                <p className="text-[9px] text-gray-500 truncate">{newPubCustomImage}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNewPubCustomImage("");
+                                }}
+                                className="text-[10px] font-bold text-rose-500 hover:text-rose-400 px-2 py-1 rounded bg-rose-500/10 transition-all z-20"
+                              >
+                                {language === "العربية" ? "حذف" : language === "English" ? "Delete" : "Supprimer"}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-2">
+                              <WandSparkles className="w-6 h-6 text-gray-500 group-hover:text-white transition-colors" />
+                              <p className="text-[11px] text-gray-400 font-semibold">
+                                {language === "العربية" ? "اسحب الصورة هنا أو اضغط للتصفح" : language === "English" ? "Drag & drop image here or click to browse" : "Glissez-déposez une image ici ou cliquez pour parcourir"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
                       <label className={clsx(
                         "block text-xs font-semibold mb-1.5 uppercase tracking-wider",
                         theme === "dark" ? "text-gray-400" : "text-slate-500"
@@ -3226,6 +3682,7 @@ export default function Home() {
 
                     <div className="flex justify-end pt-2">
                       <GlassBtn 
+                        type="submit"
                         variant="primary" 
                         size="md" 
                         loading={isSubmittingPub}
@@ -3282,6 +3739,7 @@ export default function Home() {
                         <th className="p-3">Service</th>
                         <th className="p-3">Description</th>
                         <th className="p-3">Hashtags</th>
+                        <th className="p-3">Image</th>
                         <th className="p-3 text-center">Statut</th>
                         <th className="p-3">Publié le</th>
                         <th className="p-3">Draft ID</th>
@@ -3313,6 +3771,28 @@ export default function Home() {
                             </td>
                             <td className="p-3 text-[#D4A017] italic">
                               {pub.Hashtags || "—"}
+                            </td>
+                            <td className="p-3 max-w-[120px] truncate">
+                              {pub.custom_image_url && pub.custom_image_url !== "false" ? (
+                                <a 
+                                  href={pub.custom_image_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-[#D4A017] hover:underline flex items-center gap-1.5 font-semibold"
+                                >
+                                  <img 
+                                    src={pub.custom_image_url} 
+                                    alt="Custom upload preview"
+                                    className="w-8 h-8 rounded object-cover border border-white/10 shrink-0"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                  <span className="truncate text-[10px]">{pub.custom_image_url}</span>
+                                </a>
+                              ) : (
+                                <span className="text-gray-500">Générée (AI)</span>
+                              )}
                             </td>
                             <td className="p-3 text-center">
                               <select
@@ -3566,10 +4046,10 @@ export default function Home() {
                     tone="blue"
                     title={language === "العربية" ? "لا يوجد أعضاء في الفريق حالياً" : language === "English" ? "No team members found" : "Aucun membre de l'équipe"}
                     description={language === "العربية"
-                      ? "قم بتسجيل حساب جديد بدور (Community Manager, Manager, Designer...) عبر بوابة التسجيل للظهور هنا."
+                      ? "قم بتسجيل حساب جديد بدور (Manager, Client...) عبر بوابة التسجيل للظهور هنا."
                       : language === "English"
-                      ? "Register new accounts with team roles (Community Manager, Manager, Designer...) via the portal to see them here."
-                      : "Enregistrez de nouveaux comptes avec des rôles d'équipe (Community Manager, Manager, Designer...) via le portail d'inscription pour les afficher ici."}
+                      ? "Register new accounts with team roles (Manager, Client...) via the portal to see them here."
+                      : "Enregistrez de nouveaux comptes avec des rôles d'équipe (Manager, Client...) via le portail d'inscription pour les afficher ici."}
                     note="Synchronisation en temps réel avec la base utilisateur."
                   />
                 </div>
@@ -3577,7 +4057,7 @@ export default function Home() {
                 dynamicTeam.map((member, i) => {
                   const initials = member.name
                     ? member.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
-                    : "CM";
+                    : "CL";
                   
                   const isMe = currentUser && (
                     member.email.toLowerCase() === currentUser.username.toLowerCase() ||
@@ -3608,8 +4088,6 @@ export default function Home() {
                                 ? "from-[#D4A017] to-amber-400"
                                 : member.accessRole === "manager"
                                 ? "from-blue-500 to-indigo-400"
-                                : member.accessRole === "designer"
-                                ? "from-purple-500 to-pink-400"
                                 : "from-emerald-500 to-teal-400"
                             )}>
                               {initials}
@@ -3662,23 +4140,6 @@ export default function Home() {
                           )}>
                             {member.tasks} {member.tasks > 1 ? "tâches assignées" : "tâche assignée"}
                           </span>
-                        </div>
-
-                        {/* Real Progress indicator */}
-                        <div className="mt-4 border-t border-white/5 pt-3">
-                          <div className="flex items-center justify-between text-[11px] mb-1">
-                            <span className="text-gray-400 font-medium">{t("performance_label", "Efficacité individuelle")}</span>
-                            <span className="font-bold text-[#D4A017]">{member.score}%</span>
-                          </div>
-                          <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={clsx(
-                                "h-full rounded-full transition-all duration-500",
-                                member.score >= 90 ? "bg-emerald-500" : member.score >= 70 ? "bg-amber-500" : "bg-rose-500"
-                              )}
-                              style={{ width: `${member.score}%` }}
-                            />
-                          </div>
                         </div>
                       </div>
 
@@ -3994,7 +4455,7 @@ export default function Home() {
                     ) : (
                       currentSelectedPost.commentsList.map((c: any) => {
                         const isSelectedToReply = selectedComment && String(selectedComment.id) === String(c.id);
-                        const isCM = c.isReply || c.from === "Community Manager (Moi)" || (currentUser && c.from === currentUser.name);
+                        const isCM = c.isReply || c.from === "Équipe (Moi)" || (currentUser && c.from === currentUser.name);
                         const initials = (c.from || "U")
                           .split(" ")
                           .map((n: string) => n[0])
@@ -4052,7 +4513,7 @@ export default function Home() {
                               </p>
 
                               {/* Action Footer */}
-                              {!c.isReply && !isCM && (
+                              {!c.isReply && !isCM && currentUser?.role !== "client" && (
                                 <div className="mt-1.5 flex items-center gap-3">
                                   <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-extrabold flex items-center gap-1 select-none">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-ping" />
@@ -4110,50 +4571,56 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div className="flex gap-2 items-end">
-                      <textarea
-                        value={commentReplyText}
-                        onChange={(e) => setCommentReplyText(e.target.value)}
-                        placeholder={
-                          selectedComment
-                            ? `Écrivez votre réponse à @${selectedComment.from}...`
-                            : "Veuillez sélectionner un commentaire spécifique ci-dessus pour y répondre."
-                        }
-                        disabled={!selectedComment || isPostingReply}
-                        rows={2}
-                        className={clsx(
-                          "flex-1 w-full rounded-xl border p-3 text-xs outline-none focus:ring-1 focus:ring-[#D4A017]/50 resize-none transition-all",
-                          !selectedComment ? "opacity-60 cursor-not-allowed" : "",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
-                            : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:bg-slate-50 shadow-sm"
-                        )}
-                      />
-                      <GlassBtn
-                        variant="primary"
-                        disabled={!selectedComment || !commentReplyText.trim() || isPostingReply}
-                        loading={isPostingReply}
-                        onClick={() => {
-                          if (selectedComment) {
-                            handleSendCommentReply(
-                              selectedComment.id,
-                              commentReplyText,
-                              currentSelectedPost.platform
-                            );
+                    {currentUser?.role === "client" ? (
+                      <div className="w-full p-4 rounded-xl border text-xs font-bold text-center border-amber-500/20 bg-amber-500/5 text-amber-400/90 select-none">
+                        🔒 Mode lecture seule — Les comptes clients ne disposent pas des permissions requises pour répondre aux commentaires.
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 items-end">
+                        <textarea
+                          value={commentReplyText}
+                          onChange={(e) => setCommentReplyText(e.target.value)}
+                          placeholder={
+                            selectedComment
+                              ? `Écrivez votre réponse à @${selectedComment.from}...`
+                              : "Veuillez sélectionner un commentaire spécifique ci-dessus pour y répondre."
                           }
-                        }}
-                        className="h-10 px-4 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-bold"
-                      >
-                        {isPostingReply ? (
-                          "Publication..."
-                        ) : (
-                          <>
-                            Envoyer
-                            <ArrowRightCircle className="w-4 h-4" />
-                          </>
-                        )}
-                      </GlassBtn>
-                    </div>
+                          disabled={!selectedComment || isPostingReply}
+                          rows={2}
+                          className={clsx(
+                            "flex-1 w-full rounded-xl border p-3 text-xs outline-none focus:ring-1 focus:ring-[#D4A017]/50 resize-none transition-all",
+                            !selectedComment ? "opacity-60 cursor-not-allowed" : "",
+                            theme === "dark"
+                              ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                              : "border-slate-200 bg-white text-slate-800 placeholder-slate-400 focus:bg-slate-50 shadow-sm"
+                          )}
+                        />
+                        <GlassBtn
+                          variant="primary"
+                          disabled={!selectedComment || !commentReplyText.trim() || isPostingReply}
+                          loading={isPostingReply}
+                          onClick={() => {
+                            if (selectedComment) {
+                              handleSendCommentReply(
+                                selectedComment.id,
+                                commentReplyText,
+                                currentSelectedPost.platform
+                              );
+                            }
+                          }}
+                          className="h-10 px-4 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                        >
+                          {isPostingReply ? (
+                            "Publication..."
+                          ) : (
+                            <>
+                              Envoyer
+                              <ArrowRightCircle className="w-4 h-4" />
+                            </>
+                          )}
+                        </GlassBtn>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -4232,7 +4699,7 @@ export default function Home() {
                       Trigger the n8n workflow to generate social media posts and images instantly
                     </p>
                   </div>
-                  <GenerateButton />
+                  <GenerateButton disabled={currentUser?.role !== "admin"} />
                 </div>
               </GlassCard>
             </section>
@@ -4313,16 +4780,129 @@ export default function Home() {
               <h4 className="text-sm font-bold text-white mb-3">👥 {t("userspermissions", "Utilisateurs & Permissions")}</h4>
               <ul className="space-y-2 text-xs text-gray-300">
                 <li className="flex justify-between"><span>{t("admin_role", "Administrateur")}</span> <span className="text-green-400">Full Access</span></li>
-                <li className="flex justify-between"><span>{t("manager_role", "Manager")}</span> <span className="text-blue-400">Campagnes + Équipe</span></li>
-                <li className="flex justify-between"><span>{t("cm_role", "Community Manager")}</span> <span className="text-blue-400">Pub + Messages</span></li>
-                <li className="flex justify-between"><span>{t("designer_role", "Designer")}</span> <span className="text-purple-400">Content</span></li>
-                <li className="flex justify-between"><span>{t("commercial_role", "Commercial")}</span> <span className="text-orange-400">Leads</span></li>
-                <li className="flex justify-between"><span>{t("client_role", "Client")}</span> <span className="text-yellow-400">Analytics</span></li>
+                <li className="flex justify-between"><span>{t("manager_role", "Manager")}</span> <span className="text-blue-400">Campagnes + Équipe (Sauf Paramètres)</span></li>
+                <li className="flex justify-between"><span>{t("client_role", "Client")}</span> <span className="text-amber-400">Visualisation + Messages</span></li>
               </ul>
             </GlassCard>
 
             
           </div>
+
+          {/* API Credentials Configuration Card (Editable keys!) */}
+          <GlassCard className="border-amber-500/10 bg-gradient-to-br from-amber-500/5 to-transparent">
+            <h4 className="text-sm font-bold text-white mb-1.5 flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-[#D4A017]" />
+              Configuration des Identifiants & API
+            </h4>
+            <p className="text-xs text-gray-400 mb-4">
+              Mettez à jour vos identifiants d'API. Les modifications seront appliquées immédiatement sur votre instance Supabase (Production Vercel) et sauvegardées localement dans votre fichier .env.
+            </p>
+
+            <form onSubmit={handleSaveCredentials} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    Meta Graph Access Token (Facebook & Instagram)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showMetaToken ? "text" : "password"}
+                      value={inputToken}
+                      onChange={(e) => setInputToken(e.target.value)}
+                      placeholder="Entrez votre jeton d'accès Meta (EAAS...)"
+                      className={clsx(
+                        "w-full rounded-xl border pl-3.5 pr-10 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                        theme === "dark"
+                          ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                          : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMetaToken(!showMetaToken)}
+                      className={clsx(
+                        "absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors",
+                        theme === "dark"
+                          ? "text-gray-400 hover:text-white hover:bg-white/10"
+                          : "text-slate-400 hover:text-slate-700 hover:bg-black/5"
+                      )}
+                    >
+                      {showMetaToken ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    Google Sheet ID
+                  </label>
+                  <input
+                    type="text"
+                    value={inputSheetId}
+                    onChange={(e) => setInputSheetId(e.target.value)}
+                    placeholder="Ex: 1z9Awe0lwCFK57jKnm3Gqr..."
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    Facebook Page ID
+                  </label>
+                  <input
+                    type="text"
+                    value={inputPageId}
+                    onChange={(e) => setInputPageId(e.target.value)}
+                    placeholder="Ex: 1188731377649494"
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    Instagram Account ID
+                  </label>
+                  <input
+                    type="text"
+                    value={inputIgId}
+                    onChange={(e) => setInputIgId(e.target.value)}
+                    placeholder="Ex: 17841425769301431"
+                    className={clsx(
+                      "w-full rounded-xl border px-3.5 py-2.5 text-xs transition-all focus:outline-none focus:ring-1 focus:ring-[#D4A017]/50",
+                      theme === "dark"
+                        ? "border-white/10 bg-white/5 text-white placeholder-gray-500 focus:bg-white/8"
+                        : "border-slate-200 bg-black/5 text-slate-800 placeholder-slate-400 focus:bg-black/8"
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <GlassBtn
+                  type="submit"
+                  variant="primary"
+                  className="px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Sauvegarder les configurations
+                </GlassBtn>
+              </div>
+            </form>
+          </GlassCard>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <GlassCard>
@@ -4375,6 +4955,9 @@ export default function Home() {
   };
 
   if (!currentUser) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.history.pushState(null, "", "/login");
+    }
     return (
       <LoginScreen
         theme={theme}
@@ -4491,6 +5074,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     localStorage.removeItem("dashboard-auth-user");
+                    document.cookie = "dashboard-auth-user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                     setCurrentUser(null);
                   }}
                   className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"

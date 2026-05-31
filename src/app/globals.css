@@ -211,4 +211,46 @@ section {
   background: rgba(0, 0, 0, 0.05);
 }
 
+/* Force standard cursor pointer for all interactive components */
+button, 
+select, 
+select option, 
+input[type="submit"], 
+input[type="button"],
+[role="button"], 
+a,
+.glass-btn-primary,
+.glass-btn-secondary,
+.glass-btn-subtle {
+  cursor: pointer !important;
+}
+
+/* Beautiful glass styling for disabled button locked states */
+button:disabled,
+button[disabled],
+.glass-btn-primary:disabled,
+.glass-btn-primary[disabled],
+.glass-btn-secondary:disabled,
+.glass-btn-secondary[disabled] {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
+  opacity: 0.85 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+:root[data-theme="light"] button:disabled,
+:root[data-theme="light"] button[disabled],
+:root[data-theme="light"] .glass-btn-primary:disabled,
+:root[data-theme="light"] .glass-btn-primary[disabled],
+:root[data-theme="light"] .glass-btn-secondary:disabled,
+:root[data-theme="light"] .glass-btn-secondary[disabled] {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: rgba(0, 0, 0, 0.35) !important;
+}
+
+
 

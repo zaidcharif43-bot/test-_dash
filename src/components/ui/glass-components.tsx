@@ -36,9 +36,19 @@ interface GlassBtnProps {
   loading?: boolean;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
+  type?: "button" | "submit" | "reset";
 }
 
-export function GlassBtn({ children, onClick, className, variant = "primary", loading = false, disabled = false, size = "md" }: GlassBtnProps) {
+export function GlassBtn({ 
+  children, 
+  onClick, 
+  className, 
+  variant = "primary", 
+  loading = false, 
+  disabled = false, 
+  size = "md",
+  type = "button"
+}: GlassBtnProps) {
   const variants = {
     primary: "glass-btn-primary text-white shadow-lg shadow-[#D4A017]/10",
     secondary: "glass-btn-secondary",
@@ -53,6 +63,7 @@ export function GlassBtn({ children, onClick, className, variant = "primary", lo
 
   return (
     <motion.button
+      type={type}
       whileHover={loading || disabled ? undefined : { scale: 1.02 }}
       whileTap={loading || disabled ? undefined : { scale: 0.98 }}
       onClick={onClick}

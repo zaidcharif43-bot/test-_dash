@@ -1,17 +1,22 @@
 "use client";
-
+ 
 import { useState } from "react";
-import { Sparkles, CheckCircle2, XCircle } from "lucide-react";
+import { Sparkles, CheckCircle2, XCircle, Lock } from "lucide-react";
 import { triggerN8nWorkflow } from "@/app/actions";
 import { GlassBtn } from "@/components/ui/glass-components";
 import { supabase } from "@/lib/supabase";
-
-export function GenerateButton() {
+ 
+interface GenerateButtonProps {
+  disabled?: boolean;
+}
+ 
+export function GenerateButton({ disabled = false }: GenerateButtonProps) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
-
+ 
   const handleGenerate = async () => {
+    if (disabled) return;
     setLoading(true);
     setStatus("idle");
     setErrorMsg("");
@@ -32,19 +37,25 @@ export function GenerateButton() {
     
     setLoading(false);
   };
-
+ 
   return (
     <div className="flex flex-col items-start space-y-2">
       <GlassBtn 
         onClick={handleGenerate} 
-        disabled={loading}
-        className="flex items-center gap-2 group transition-all"
+        disabled={loading || disabled}
+        className={`flex items-center gap-2 group transition-all`}
       >
-        <Sparkles 
-          className={loading ? "animate-spin text-blue-400" : "text-blue-400 group-hover:scale-110 transition-transform"} 
-          size={18} 
-        />
-        <span>{loading ? "Génération en cours..." : "Générer Maintenance (n8n)"}</span>
+        {disabled ? (
+          <Lock className="text-gray-400" size={16} />
+        ) : (
+          <Sparkles 
+            className={loading ? "animate-spin text-blue-400" : "text-blue-400 group-hover:scale-110 transition-transform"} 
+            size={18} 
+          />
+        )}
+        <span>
+          {loading ? "Génération en cours..." : disabled ? "Action réservée à l'administrateur" : "Générer Maintenance (n8n)"}
+        </span>
       </GlassBtn>
       
       {status === "success" && (

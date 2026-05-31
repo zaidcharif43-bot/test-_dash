@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConfigValue } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,15 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    let FB_TOKEN = token;
+    if (!FB_TOKEN || FB_TOKEN.endsWith("...") || FB_TOKEN === "undefined") {
+      FB_TOKEN = await getConfigValue("FACEBOOK_ACCESS_TOKEN");
+    }
 
-    const FB_TOKEN = token || process.env.FACEBOOK_ACCESS_TOKEN;
-    const FB_PAGE_ID = pageId || process.env.FACEBOOK_PAGE_ID;
+    let FB_PAGE_ID = pageId;
+    if (!FB_PAGE_ID || FB_PAGE_ID === "undefined") {
+      FB_PAGE_ID = await getConfigValue("FACEBOOK_PAGE_ID");
+    }
 
     // If no token is provided or configured, simulate a successful reply locally (demonstration sandbox)
     if (!FB_TOKEN || FB_TOKEN.startsWith("EAAS_MOCK") || FB_TOKEN.length < 20) {

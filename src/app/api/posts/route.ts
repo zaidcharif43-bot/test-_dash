@@ -1,12 +1,13 @@
 import { getPublicGoogleSheet } from "@/lib/google-sheets";
 import { NextRequest, NextResponse } from "next/server";
+import { getConfigValue } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const sheetId = searchParams.get("sheetId") || process.env.GOOGLE_SHEETS_ID;
+  const sheetId = searchParams.get("sheetId") || await getConfigValue("GOOGLE_SHEETS_ID");
   
   if (!sheetId) {
     return NextResponse.json({ error: "Missing GOOGLE_SHEETS_ID" }, { status: 500 });
